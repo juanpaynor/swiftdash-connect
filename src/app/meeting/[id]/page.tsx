@@ -99,34 +99,57 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
     };
   }, [meetingId]);
 
-  const initializeMeeting = async () => {
+  // Guest State
+  const [showGuestDialog, setShowGuestDialog] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestId, setGuestId] = useState('');
+
+  useEffect(() => {
+    // Generate a random guest ID on mount if not present
+    if (!guestId) {
+      setGuestId(crypto.randomUUID());
+    }
+  }, []);
+
+  const initializeMeeting = async (isGuestRetry = false) => {
     try {
       const supabase = createClient();
+      let currentUser: UserType | { id: string; full_name: string; email?: string; avatar_url?: string } | null = null;
+      let isGuest = false;
 
-      // Get authenticated user
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+      // 1. Get authenticated user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
 
-      if (!authUser) {
-        router.push('/');
-        return;
+      if (authUser) {
+        // Fetch full user profile
+        const { data: userRecord } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        currentUser = userRecord;
       }
 
-      // Get user record
-      const { data: userRecord } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (!userRecord) {
-        throw new Error('User not found');
+      // 2. If no auth user, Handle Guest Flow
+      if (!currentUser) {
+        if (!guestName) {
+          setShowGuestDialog(true);
+          setIsLoading(false);
+          return;
+        }
+        isGuest = true;
+        currentUser = {
+          id: guestId,
+          full_name: guestName,
+          email: 'guest@anonymous',
+          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(guestName)}&background=random`
+        };
       }
 
-      setUser(userRecord);
+      if (currentUser && !isGuest) setUser(currentUser as UserType);
 
-      // Get meeting details
+      // 3. Get meeting details
       const { data: meetingData, error: meetingError } = await supabase
         .from('meetings')
         .select('*')
@@ -134,45 +157,57 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         .single();
 
       if (meetingError || !meetingData) {
-        toast({
-          title: 'Meeting Not Found',
-          description: 'This meeting does not exist',
-          variant: 'destructive',
-        });
+        toast({ title: 'Meeting Not Found', description: 'This meeting does not exist', variant: 'destructive' });
         router.push('/dashboard');
         return;
       }
-
       setMeeting(meetingData);
 
-      // 1. Password Check
-      if (meetingData.password && meetingData.host_id !== userRecord.id && !isPasswordVerified) {
-        setShowPasswordDialog(true);
-        setIsLoading(false);
-        return;
+      // 4. Password Check
+      // (Guests always check password if enabled)
+      if (meetingData.password && (!isGuest && meetingData.host_id !== currentUser.id) && !isPasswordVerified) {
+        if (isGuest || meetingData.host_id !== currentUser.id) {
+          setShowPasswordDialog(true);
+          setIsLoading(false);
+          return;
+        }
       }
 
-      // 2. Waiting Room Logic
-      if (meetingData.waiting_room_enabled && meetingData.host_id !== userRecord.id) {
-        // Check if user is already a participant
-        let { data: participant } = await supabase
+      // 5. Waiting Room & Participant Registration
+      // Skip waiting room logic update for host, only for participants
+      if (meetingData.host_id !== currentUser.id) {
+        const participantQuery = supabase
           .from('meeting_participants')
           .select('*')
-          .eq('meeting_id', meetingData.id)
-          .eq('user_id', userRecord.id)
-          .maybeSingle();
+          .eq('meeting_id', meetingData.id);
+
+        // Filter by user_id OR guest_id
+        if (isGuest) {
+          participantQuery.eq('guest_id', currentUser.id);
+        } else {
+          participantQuery.eq('user_id', currentUser.id);
+        }
+
+        let { data: participant } = await participantQuery.maybeSingle();
 
         if (!participant) {
-          // Create as waiting
+          const insertPayload: any = {
+            meeting_id: meetingData.id,
+            role: 'participant',
+            status: meetingData.waiting_room_enabled ? 'waiting' : 'admitted',
+            joined_at: new Date().toISOString(),
+          };
+
+          if (isGuest) {
+            insertPayload.guest_id = currentUser.id;
+            insertPayload.guest_name = currentUser.full_name;
+          } else {
+            insertPayload.user_id = currentUser.id;
+          }
+
           const { data: newParticipant, error: joinError } = await supabase
             .from('meeting_participants')
-            .insert({
-              meeting_id: meetingData.id,
-              user_id: userRecord.id,
-              role: 'participant',
-              status: 'waiting',
-              joined_at: new Date().toISOString(),
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -180,126 +215,74 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           participant = newParticipant;
         }
 
+        // Waiting Room Handling
         if (participant.status === 'waiting') {
           setIsInWaitingRoom(true);
           setIsLoading(false);
 
-          // Subscribe to changes for this participant
-          const channel = supabase
-            .channel(`participant_${participant.id}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'meeting_participants',
-                filter: `id=eq.${participant.id}`,
-              },
+          // Subscribe to status changes
+          supabase.channel(`participant_${participant.id}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'meeting_participants', filter: `id=eq.${participant.id}` },
               (payload) => {
                 if (payload.new.status === 'admitted') {
                   setIsInWaitingRoom(false);
                   setIsLoading(true);
-                  initializeMeeting(); // Retry join
+                  initializeMeeting(true);
                 } else if (payload.new.status === 'denied') {
                   router.push('/dashboard');
-                  toast({
-                    title: 'Access Denied',
-                    description: 'The host has denied your request to join.',
-                    variant: 'destructive',
-                  });
+                  toast({ title: 'Access Denied', description: 'Host denied your request.', variant: 'destructive' });
                 }
-              }
-            )
-            .subscribe();
-
+              }).subscribe();
           return;
         } else if (participant.status === 'denied') {
           router.push('/dashboard');
           return;
         }
-        // If admitted, fall through to normal join
       }
 
-      // 3. Host: Subscribe to Waiting Room
-      if (meetingData.host_id === userRecord.id && meetingData.waiting_room_enabled) {
-        fetchWaitingParticipants(meetingData.id);
+      // 6. Get Stream Token
+      // Use Guest payload if needed
+      const tokenPayload = isGuest
+        ? { is_guest: true, user_id: currentUser.id, name: currentUser.full_name }
+        : {};
 
-        const channel = supabase
-          .channel('waiting_room')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'meeting_participants',
-              filter: `meeting_id=eq.${meetingData.id}`,
-            },
-            () => {
-              fetchWaitingParticipants(meetingData.id);
-            }
-          )
-          .subscribe();
-      }
-
-      // Get Stream token
       const tokenResponse = await fetch('/api/stream/token', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tokenPayload),
       });
 
-      const { token, userId, userName, apiKey } = await tokenResponse.json();
+      const { token, apiKey } = await tokenResponse.json();
 
-      // Store token and apiKey for chat
+      if (!token) throw new Error('Failed to get token');
+
       setStreamToken(token);
       setStreamApiKey(apiKey);
 
-      // Initialize Stream Video client
+      // 7. Initialize Stream Client
       const streamClient = new StreamVideoClient({
         apiKey,
         user: {
-          id: userId,
-          name: userName,
-          image: userRecord.avatar_url,
-        },
+          id: currentUser.id,
+          name: currentUser.full_name,
+          image: currentUser.avatar_url,
+          type: isGuest ? 'guest' : 'regular',
+        } as any, // Cast to any to avoid strict type mismatch on 'type' property
         token,
       });
 
       setClient(streamClient);
-
-      // Create or join call
       const streamCall = streamClient.call('default', meetingData.id);
-
-      // Join the call
       await streamCall.join({ create: true });
-
       setCall(streamCall);
 
-      // Update meeting status to live if it's the host
-      if (meetingData.host_id === userRecord.id && meetingData.status !== 'live') {
-        await supabase
-          .from('meetings')
-          .update({ status: 'live' })
-          .eq('id', meetingData.id);
-      }
-
-      // Add participant record (check if already exists)
-      const { data: existingParticipant } = await supabase
-        .from('meeting_participants')
-        .select('id')
-        .eq('meeting_id', meetingData.id)
-        .eq('user_id', userRecord.id)
-        .eq('user_id', userRecord.id)
-        .maybeSingle();
-
-      if (!existingParticipant) {
-        await supabase.from('meeting_participants').insert({
-          meeting_id: meetingData.id,
-          user_id: userRecord.id,
-          status: 'admitted', // Explicitly admit execution path
-          joined_at: new Date().toISOString(),
-        });
+      // Set Live Status if Host
+      if (!isGuest && meetingData.host_id === currentUser.id && meetingData.status !== 'live') {
+        await supabase.from('meetings').update({ status: 'live' }).eq('id', meetingData.id);
       }
 
       setIsLoading(false);
+
     } catch (error: any) {
       console.error('Error initializing meeting:', error);
       toast({
@@ -307,6 +290,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         description: error.message || 'Failed to join meeting',
         variant: 'destructive',
       });
+      setIsLoading(false);
     }
   };
 
@@ -442,6 +426,46 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       setTimeout(() => setIsCopied(false), 2000);
     }
   };
+
+  if (showGuestDialog) {
+    return (
+      <div className="flex h-screen items-center justify-center p-4 bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <UserPlus className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-center">Join Meeting</CardTitle>
+            <CardDescription className="text-center">
+              Please enter your name to join as a guest.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Your Name</Label>
+              <Input
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && guestName.trim() && initializeMeeting()}
+                placeholder="Ex. John Doe"
+                autoFocus
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => initializeMeeting()}
+              disabled={!guestName.trim()}
+            >
+              Continue
+            </Button>
+            <div className="text-center text-sm text-muted-foreground">
+              or <Link href="/login" className="underline hover:text-primary">Log In</Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (showPasswordDialog) {
     return (

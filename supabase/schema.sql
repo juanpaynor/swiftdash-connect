@@ -94,12 +94,15 @@ CREATE TABLE meetings (
 create table meeting_participants (
   id uuid default gen_random_uuid() primary key,
   meeting_id uuid references meetings(id) on delete cascade not null,
-  user_id uuid references auth.users(id) not null,
+  user_id uuid references auth.users(id), -- Nullable for guests
+  guest_id text, -- For tracking guest users
+  guest_name text, -- Display name for guests
   role text check (role in ('host', 'participant')) default 'participant',
   status text check (status in ('admitted', 'waiting', 'denied')) default 'admitted',
   joined_at timestamptz default now(),
   left_at timestamptz,
-  UNIQUE(meeting_id, user_id)
+  UNIQUE(meeting_id, user_id),
+  UNIQUE(meeting_id, guest_id) -- Prevent duplicate guest sessions if possible
 );
 
 CREATE TABLE meeting_invitations (

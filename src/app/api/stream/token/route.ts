@@ -8,9 +8,35 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const body = await request.json().catch(() => ({}));
+    const { is_guest, user_id: guestId, name: guestName } = body;
 
-    // Get authenticated user
+    const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+    const apiSecret = process.env.STREAM_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+      console.error('Stream API credentials missing');
+      return NextResponse.json(
+        { error: 'Stream configuration missing' },
+        { status: 500 }
+      );
+    }
+
+    const serverClient = StreamChat.getInstance(apiKey, apiSecret);
+
+    // GUEST FLOW
+    if (is_guest && guestId && guestName) {
+      const token = serverClient.createToken(guestId);
+      return NextResponse.json({
+        token,
+        userId: guestId,
+        userName: guestName,
+        apiKey,
+      });
+    }
+
+    // AUTH FLOW
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,
@@ -30,20 +56,6 @@ export async function POST(request: NextRequest) {
     if (!userRecord) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
-    const apiSecret = process.env.STREAM_API_SECRET;
-
-    if (!apiKey || !apiSecret) {
-      console.error('Stream API credentials missing');
-      return NextResponse.json(
-        { error: 'Stream configuration missing' },
-        { status: 500 }
-      );
-    }
-
-    // Initialize Stream Chat server client
-    const serverClient = StreamChat.getInstance(apiKey, apiSecret);
 
     // Generate token for user
     const token = serverClient.createToken(userRecord.id);
