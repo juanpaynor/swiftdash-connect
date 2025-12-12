@@ -202,6 +202,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
             joined_at: new Date().toISOString()
           };
 
+          // Successful Join! Close dialog.
+          setShowGuestDialog(false);
+
         } else {
           // FOR AUTHENTICATED USERS: Use standard check-then-insert flow
           const { data: existingParticipant } = await supabase
