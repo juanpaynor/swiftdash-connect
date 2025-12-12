@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -21,16 +23,63 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface UserData {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url: string | null;
+}
 
 export function Header() {
-  const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
+  const router = useRouter();
+  const { toast } = useToast();
+  const [user, setUser] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createClient();
+      
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (authUser) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        
+        setUser(userData);
+      }
+      
+      setIsLoading(false);
+    };
+
+    fetchUser();
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    
+    await supabase.auth.signOut();
+    
+    toast({
+      title: 'Logged out',
+      description: 'You have been successfully logged out',
+    });
+    
+    router.push('/');
+    router.refresh();
+  };
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '#', label: 'Meetings' },
-    { href: '#', label: 'Contacts' },
-    { href: '#', label: 'Settings' },
+    { href: '/meetings', label: 'Meetings' },
+    { href: '/contacts', label: 'Contacts' },
+    { href: '/settings', label: 'Settings' },
   ];
 
   return (
@@ -82,14 +131,13 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">
-              {userAvatar ? (
+              {user?.avatar_url ? (
                  <Image
-                    src={userAvatar.imageUrl}
+                    src={user.avatar_url}
                     width={36}
                     height={36}
-                    alt={userAvatar.description}
-                    className="rounded-full"
-                    data-ai-hint={userAvatar.imageHint}
+                    alt={user.full_name}
+                    className="rounded-full object-cover"
                   />
               ) : (
                 <CircleUser className="h-5 w-5" />
@@ -98,23 +146,32 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {isLoading ? 'Loading...' : user?.full_name || 'My Account'}
+            </DropdownMenuLabel>
+            {user?.email && (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                {user.email}
+              </div>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <Link href="/">
+            <Link href="/profile">
               <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
               </DropdownMenuItem>
             </Link>
+            <Link href="/settings">
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Logout</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
