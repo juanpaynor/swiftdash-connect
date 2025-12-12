@@ -160,7 +160,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           .select('*')
           .eq('meeting_id', meetingData.id)
           .eq('user_id', userRecord.id)
-          .single();
+          .maybeSingle();
 
         if (!participant) {
           // Create as waiting
@@ -287,7 +287,8 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         .select('id')
         .eq('meeting_id', meetingData.id)
         .eq('user_id', userRecord.id)
-        .single();
+        .eq('user_id', userRecord.id)
+        .maybeSingle();
 
       if (!existingParticipant) {
         await supabase.from('meeting_participants').insert({

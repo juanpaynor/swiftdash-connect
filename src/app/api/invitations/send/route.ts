@@ -24,14 +24,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user record
-    const { data: userRecord } = await supabase
+    let { data: userRecord, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (!userRecord) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (userError || !userRecord) {
+      console.warn('API: User lookup failed with standard client, trying admin...', userError);
+
+      try {
+        const { createAdminClient } = await import('@/lib/supabase/admin');
+        const adminSupabase = createAdminClient();
+        const { data: adminUserRecord, error: adminError } = await adminSupabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (adminError || !adminUserRecord) {
+          console.error('API: Admin lookup also failed:', adminError);
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        userRecord = adminUserRecord;
+      } catch (err) {
+        console.error('API: Admin client error:', err);
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
     }
 
     // Parse request body
@@ -72,8 +92,9 @@ export async function POST(request: NextRequest) {
       .insert({
         meeting_id: meetingId,
         invited_by: user.id,
-        email,
-        token,
+        invitee_email: email, // Changed from email to invitee_email based on database.types.ts
+        invitation_token: token, // Changed from token to invitation_token
+        invitation_type: 'email', // Added based on database.types.ts
         expires_at: expiresAt.toISOString(),
         status: 'pending',
       })
@@ -114,7 +135,7 @@ export async function POST(request: NextRequest) {
               <h3 style="margin-top: 0;">${meeting.title}</h3>
               <p><strong>Organization:</strong> ${org?.name || 'SwiftDash'}</p>
               ${meeting.scheduled_time ? `<p><strong>Scheduled:</strong> ${new Date(meeting.scheduled_time).toLocaleString()}</p>` : ''}
-              <p><strong>Meeting Code:</strong> <code style="background: #e0e0e0; padding: 4px 8px; border-radius: 4px;">${meeting.meeting_code}</code></p>
+              <p><strong>Meeting Code:</strong> <code style="background: #e0e0e0; padding: 4px 8px; border-radius: 4px;">${meeting.meeting_slug}</code></p>
             </div>
 
             <p>Click the button below to join the meeting:</p>
