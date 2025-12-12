@@ -183,7 +183,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           // FOR GUESTS: Skip the SELECT query completely to avoid "column not found" cache errors.
           // We rely 100% on the RPC function to handle "Get or Create".
 
-          const { data: rpcData, error: rpcError } = await supabase.rpc('join_meeting_as_guest', {
+          const { data: rpcData, error: rpcError } = await supabase.rpc('join_meeting_v2', {
             p_meeting_id: meetingData.id,
             p_guest_id: currentUser.id,
             p_guest_name: currentUser.full_name,
