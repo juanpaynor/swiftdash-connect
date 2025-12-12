@@ -286,3 +286,28 @@ CREATE POLICY "Organization owners can delete logos" ON storage.objects FOR DELE
       WHERE user_id = auth.uid() AND role = 'owner'
     )
   );
+
+-- RPC: Bypass table schema cache for guest joins
+CREATE OR REPLACE FUNCTION join_meeting_as_guest(
+  p_meeting_id UUID,
+  p_guest_id TEXT,
+  p_guest_name TEXT,
+  p_status TEXT DEFAULT 'admitted'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_participant_id UUID;
+BEGIN
+  -- Insert or return existing guest participant
+  INSERT INTO meeting_participants (meeting_id, guest_id, guest_name, role, status, joined_at)
+  VALUES (p_meeting_id, p_guest_id, p_guest_name, 'participant', p_status, NOW())
+  ON CONFLICT (meeting_id, guest_id) 
+  DO UPDATE SET status = p_status, joined_at = NOW() -- status update to ensure they assume correct state
+  RETURNING id INTO v_participant_id;
+
+  RETURN jsonb_build_object('id', v_participant_id, 'status', p_status);
+END;
+$$;

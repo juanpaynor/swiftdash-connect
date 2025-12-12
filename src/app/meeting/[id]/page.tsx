@@ -176,43 +176,59 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       // 5. Waiting Room & Participant Registration
       // Skip waiting room logic update for host, only for participants
       if (meetingData.host_id !== currentUser.id) {
-        const participantQuery = supabase
-          .from('meeting_participants')
-          .select('*')
-          .eq('meeting_id', meetingData.id);
 
-        // Filter by user_id OR guest_id
+        let participant: any = null;
+
         if (isGuest) {
-          participantQuery.eq('guest_id', currentUser.id);
-        } else {
-          participantQuery.eq('user_id', currentUser.id);
-        }
+          // FOR GUESTS: Skip the SELECT query completely to avoid "column not found" cache errors.
+          // We rely 100% on the RPC function to handle "Get or Create".
 
-        let { data: participant } = await participantQuery.maybeSingle();
+          const { data: rpcData, error: rpcError } = await supabase.rpc('join_meeting_as_guest', {
+            p_meeting_id: meetingData.id,
+            p_guest_id: currentUser.id,
+            p_guest_name: currentUser.full_name,
+            p_status: meetingData.waiting_room_enabled ? 'waiting' : 'admitted'
+          });
 
-        if (!participant) {
-          const insertPayload: any = {
+          if (rpcError) throw rpcError;
+
+          participant = {
+            id: (rpcData as any)?.id,
             meeting_id: meetingData.id,
+            guest_id: currentUser.id,
+            guest_name: currentUser.full_name,
             role: 'participant',
-            status: meetingData.waiting_room_enabled ? 'waiting' : 'admitted',
-            joined_at: new Date().toISOString(),
+            status: (rpcData as any)?.status || (meetingData.waiting_room_enabled ? 'waiting' : 'admitted'),
+            joined_at: new Date().toISOString()
           };
 
-          if (isGuest) {
-            insertPayload.guest_id = currentUser.id;
-            insertPayload.guest_name = currentUser.full_name;
-          } else {
-            insertPayload.user_id = currentUser.id;
-          }
-
-          const { data: newParticipant, error: joinError } = await supabase
+        } else {
+          // FOR AUTHENTICATED USERS: Use standard check-then-insert flow
+          const { data: existingParticipant } = await supabase
             .from('meeting_participants')
-            .insert(insertPayload)
-            .select()
-            .single();
+            .select('*')
+            .eq('meeting_id', meetingData.id)
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
 
-          if (joinError) throw joinError;
-          participant = newParticipant;
+          if (existingParticipant) {
+            participant = existingParticipant;
+          } else {
+            const { data: newParticipant, error: joinError } = await supabase
+              .from('meeting_participants')
+              .insert({
+                meeting_id: meetingData.id,
+                user_id: currentUser.id,
+                role: 'participant',
+                status: meetingData.waiting_room_enabled ? 'waiting' : 'admitted',
+                joined_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (joinError) throw joinError;
+            participant = newParticipant;
+          }
         }
 
         // Waiting Room Handling
