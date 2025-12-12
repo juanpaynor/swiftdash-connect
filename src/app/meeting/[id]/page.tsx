@@ -163,6 +163,12 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       }
       setMeeting(meetingData);
 
+      // 3.5 Check if meeting is ended
+      if (meetingData.status === 'completed' || meetingData.status === 'cancelled') {
+        setIsLoading(false);
+        return;
+      }
+
       // 4. Password Check
       // (Guests always check password if enabled)
       if (meetingData.password && (!isGuest && meetingData.host_id !== currentUser.id) && !isPasswordVerified) {
@@ -446,6 +452,32 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
     }
   };
 
+  if (meeting?.status === 'completed' || meeting?.status === 'cancelled') {
+    return (
+      <div className="flex h-screen items-center justify-center p-4 bg-background">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <PhoneOff className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle>Meeting Ended</CardTitle>
+            <CardDescription>
+              This meeting has been {meeting.status} by the host.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard">
+              <Button className="w-full">Return to Dashboard</Button>
+            </Link>
+            <div className="mt-4 text-sm text-muted-foreground">
+              Need to start a new meeting? <Link href="/dashboard" className="underline text-primary">Go to Dashboard</Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (showGuestDialog) {
     return (
       <div className="flex h-screen items-center justify-center p-4 bg-background">
@@ -574,22 +606,22 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       <ThemeInjector />
       <StreamVideo client={client}>
         <StreamCall call={call}>
-          <div className="h-dvh w-full bg-background flex flex-col overflow-hidden">
-            {/* Header */}
-            <header className="flex-none p-3 sm:p-4 border-b flex items-center justify-between bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 z-10">
-              <div className="flex items-center gap-2 sm:gap-3">
+          <div className="relative h-dvh w-full bg-black overflow-hidden group">
+            {/* Header - Floating Overlay */}
+            <header className="absolute top-0 left-0 right-0 z-10 p-3 sm:p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent transition-all duration-300 -translate-y-full group-hover:translate-y-0 hover:translate-y-0">
+              <div className="flex items-center gap-2 sm:gap-3 text-white">
                 <Link href="/dashboard">
-                  <Button variant="outline" size="icon" onClick={handleLeaveMeeting} className="h-8 w-8 sm:h-10 sm:w-10">
+                  <Button variant="ghost" size="icon" onClick={handleLeaveMeeting} className="h-8 w-8 sm:h-10 sm:w-10 text-white hover:bg-white/20">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                 </Link>
                 <div>
                   <h1 className="text-sm sm:text-lg font-semibold truncate max-w-[150px] sm:max-w-xs">{meeting?.title}</h1>
-                  <p className="text-xs text-muted-foreground hidden sm:block">
+                  <p className="text-xs text-white/70 hidden sm:block">
                     {meeting?.meeting_slug && (
                       <button
                         onClick={copyMeetingCode}
-                        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                        className="inline-flex items-center gap-1 hover:text-white transition-colors"
                       >
                         Code: {meeting.meeting_slug}
                         {isCopied ? (
@@ -608,7 +640,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 <Button
                   variant="default"
                   size="sm"
-                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white h-8 sm:h-9"
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white h-8 sm:h-9 border-none shadow-md"
                   onClick={() => setIsInviteModalOpen(true)}
                 >
                   <UserPlus className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -619,7 +651,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 {meeting?.host_id === user?.id && meeting?.waiting_room_enabled && (
                   <Sheet open={isWaitingRoomOpen} onOpenChange={setIsWaitingRoomOpen}>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="sm" className="relative h-8 sm:h-9">
+                      <Button variant="outline" size="sm" className="relative h-8 sm:h-9 bg-black/40 text-white border-white/20 hover:bg-black/60 hover:text-white">
                         <Users className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
                         <span className="hidden sm:inline">Waiting Room</span>
                         {waitingParticipants.length > 0 && (
@@ -671,7 +703,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                     variant="destructive"
                     size="sm"
                     onClick={handleEndMeeting}
-                    className="gap-2 h-8 sm:h-9"
+                    className="gap-2 h-8 sm:h-9 shadow-md"
                   >
                     <PhoneOff className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span className="hidden sm:inline">End</span>
@@ -681,43 +713,45 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
             </header>
 
             {/* Video Area */}
-            <main className="flex-1 relative overflow-hidden w-full h-full">
+            <main className="absolute inset-0 z-0">
               {layout === 'speaker' ? (
-                <SpeakerLayout participantsBarPosition="bottom" />
+                <SpeakerLayout participantsBarPosition="top" />
               ) : (
                 <PaginatedGridLayout groupSize={12} />
               )}
             </main>
 
-            {/* Call Controls */}
-            <footer className="p-4 flex justify-center gap-4">
+            {/* Call Controls - Floating Footer */}
+            <footer className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex justify-center gap-4 transition-all duration-300 translate-y-full group-hover:translate-y-0 hover:translate-y-0">
               {/* Layout Toggle */}
-              <div className="bg-card/95 backdrop-blur-sm border rounded-full p-2 shadow-lg hidden sm:block">
+              <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl hidden sm:block">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-full h-10 w-10"
+                  className="rounded-full h-10 w-10 text-white hover:bg-white/20"
                   onClick={() => setLayout(layout === 'speaker' ? 'grid' : 'speaker')}
                   title={layout === 'speaker' ? "Switch to Grid View" : "Switch to Speaker View"}
                 >
-                  <LayoutGrid className={`h-5 w-5 ${layout === 'grid' ? 'text-primary' : ''}`} />
+                  <LayoutGrid className={`h-5 w-5 ${layout === 'grid' ? 'text-blue-400' : ''}`} />
                 </Button>
               </div>
 
-              <div className="bg-card/95 backdrop-blur-sm border rounded-full p-2 shadow-lg">
+              <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl">
                 <CallControls onLeave={handleLeaveMeeting} />
               </div>
 
               {/* Chat Button */}
               <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
                 <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="rounded-full h-12 w-12"
-                  >
-                    <MessageSquare className="h-5 w-5" />
-                  </Button>
+                  <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full h-10 w-10 text-white hover:bg-white/20"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col">
                   <SheetHeader className="p-4 border-b">
