@@ -531,18 +531,18 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       <ThemeInjector />
       <StreamVideo client={client}>
         <StreamCall call={call}>
-          <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
+          <div className="h-dvh w-full bg-background flex flex-col overflow-hidden">
             {/* Header */}
-            <header className="p-4 border-b flex items-center justify-between bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-              <div className="flex items-center gap-3">
+            <header className="flex-none p-3 sm:p-4 border-b flex items-center justify-between bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 z-10">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Link href="/dashboard">
-                  <Button variant="outline" size="icon" onClick={handleLeaveMeeting}>
+                  <Button variant="outline" size="icon" onClick={handleLeaveMeeting} className="h-8 w-8 sm:h-10 sm:w-10">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                 </Link>
                 <div>
-                  <h1 className="text-lg font-semibold">{meeting?.title}</h1>
-                  <p className="text-xs text-muted-foreground">
+                  <h1 className="text-sm sm:text-lg font-semibold truncate max-w-[150px] sm:max-w-xs">{meeting?.title}</h1>
+                  <p className="text-xs text-muted-foreground hidden sm:block">
                     {meeting?.meeting_slug && (
                       <button
                         onClick={copyMeetingCode}
@@ -565,10 +565,10 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 <Button
                   variant="default"
                   size="sm"
-                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white h-8 sm:h-9"
                   onClick={() => setIsInviteModalOpen(true)}
                 >
-                  <UserPlus className="h-4 w-4" />
+                  <UserPlus className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Invite</span>
                 </Button>
 
@@ -576,9 +576,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 {meeting?.host_id === user?.id && meeting?.waiting_room_enabled && (
                   <Sheet open={isWaitingRoomOpen} onOpenChange={setIsWaitingRoomOpen}>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="sm" className="relative">
-                        <Users className="h-4 w-4 mr-2" />
-                        Waiting Room
+                      <Button variant="outline" size="sm" className="relative h-8 sm:h-9">
+                        <Users className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Waiting Room</span>
                         {waitingParticipants.length > 0 && (
                           <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
                             {waitingParticipants.length}
@@ -628,17 +628,17 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                     variant="destructive"
                     size="sm"
                     onClick={handleEndMeeting}
-                    className="gap-2"
+                    className="gap-2 h-8 sm:h-9"
                   >
-                    <PhoneOff className="h-4 w-4" />
-                    End for All
+                    <PhoneOff className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">End</span>
                   </Button>
                 )}
               </div>
             </header>
 
             {/* Video Area */}
-            <main className="flex-1 relative overflow-hidden">
+            <main className="flex-1 relative overflow-hidden w-full h-full">
               {layout === 'speaker' ? (
                 <SpeakerLayout participantsBarPosition="bottom" />
               ) : (

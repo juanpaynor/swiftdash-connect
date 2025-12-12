@@ -5,8 +5,10 @@
 @layer base {
   :root {
     /* Premium SwiftDash Theme */
-    --background: 210 40% 98%; /* Soft cool white */
-    --foreground: 222 47% 11%; /* Deep slate text */
+    --background: 210 40% 98%;
+    /* Soft cool white */
+    --foreground: 222 47% 11%;
+    /* Deep slate text */
 
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
@@ -14,7 +16,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 199 89% 48%; /* Vibrant but professional Blue/Cyan */
+    --primary: 199 89% 48%;
+    /* Vibrant but professional Blue/Cyan */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -23,7 +26,8 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 199 89% 96%; /* Very subtle tint of primary */
+    --accent: 199 89% 96%;
+    /* Very subtle tint of primary */
     --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84.2% 60.2%;
@@ -33,7 +37,8 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 199 89% 48%;
 
-    --radius: 0.75rem; /* Larger radius for modern feel */
+    --radius: 0.75rem;
+    /* Larger radius for modern feel */
 
     --chart-1: 199 89% 48%;
     --chart-2: 173 58% 39%;
@@ -43,10 +48,12 @@
   }
 
   .dark {
-    --background: 222 47% 11%; /* Deep slate background */
+    --background: 222 47% 11%;
+    /* Deep slate background */
     --foreground: 210 40% 98%;
 
-    --card: 217 33% 17%; /* Lighter slate for cards */
+    --card: 217 33% 17%;
+    /* Lighter slate for cards */
     --card-foreground: 210 40% 98%;
 
     --popover: 217 33% 17%;
@@ -77,7 +84,40 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Force Stream Video to fill container */
+.str-video__call-stats,
+.str-video__speaker-layout,
+.str-video__paginated-grid-layout,
+.str-video__call {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Fix for floating elements */
+.str-video__call {
+  position: relative;
+}
+
+/* Fix Stream Call Control Icons */
+.str-video__call-controls__button {
+  background-color: transparent !important;
+  color: white !important;
+}
+
+.str-video__call-controls__button svg {
+  display: block;
+  width: 20px !important;
+  height: 20px !important;
+  fill: currentColor;
+}
+
+/* Ensure secondary buttons (e.g. settings) are also visible */
+.str-video__composite-button {
+  color: white !important;
 }
