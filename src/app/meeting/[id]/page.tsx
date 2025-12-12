@@ -11,6 +11,7 @@ import {
   CallControls,
   useCallStateHooks,
   ParticipantView,
+  PaginatedGridLayout,
 } from '@stream-io/video-react-sdk';
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import {
@@ -22,6 +23,7 @@ import {
   PhoneOff,
   MessageSquare,
   Users,
+  UserPlus,
   ChevronLeft,
   Loader2,
   Copy,
@@ -29,6 +31,7 @@ import {
   Shield,
   UserCheck,
   UserX,
+  LayoutGrid,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,7 +45,10 @@ import { Meeting, User as UserType } from '@/lib/database.types';
 import { BrandingProvider, useBranding } from '@/lib/branding/theme-provider';
 import { ThemeInjector } from '@/components/branding/theme-injector';
 import { MeetingChat } from '@/components/meeting/meeting-chat';
+import { InviteMeetingModal } from '@/components/meeting/invite-meeting-modal';
 import Link from 'next/link';
+
+type MeetingLayout = 'speaker' | 'grid';
 
 export default function MeetingPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -57,6 +63,8 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const [streamApiKey, setStreamApiKey] = useState<string>('');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [meetingId, setMeetingId] = useState<string>('');
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [layout, setLayout] = useState<MeetingLayout>('speaker');
 
   // Security State
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -314,13 +322,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           await supabase.from('stream_usage_logs').insert({
             organization_id: user.default_organization_id!, // Fixed: changed from organization_id
             meeting_id: meeting.id,
-            // user_id: user.id, // removed as it is not in the type definition? checking database.types.ts... StreamUsageLog has NO user_id. 
-            // Wait, looking at database.types.ts again:
-            // StreamUsageLog: id, organization_id, meeting_id, participant_minutes, peak_concurrent_participants, recorded_at
-            // The code was trying to insert user_id and event_type which are NOT in the type.
-            // I need to adjust the insert to match the type.
-            // However, the original code had these. I will comment them out for now to fix the type error.
-            participant_minutes: 0, // Placeholder, was duration_minutes
+            participant_minutes: 0, // Placeholder
             peak_concurrent_participants: participants,
             recorded_at: new Date().toISOString(),
           });
@@ -558,6 +560,17 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Invite Button */}
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setIsInviteModalOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Invite</span>
+                </Button>
+
                 {/* Host Controls: Waiting Room */}
                 {meeting?.host_id === user?.id && meeting?.waiting_room_enabled && (
                   <Sheet open={isWaitingRoomOpen} onOpenChange={setIsWaitingRoomOpen}>
@@ -625,11 +638,28 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
 
             {/* Video Area */}
             <main className="flex-1 relative overflow-hidden">
-              <SpeakerLayout />
+              {layout === 'speaker' ? (
+                <SpeakerLayout participantsBarPosition="bottom" />
+              ) : (
+                <PaginatedGridLayout groupSize={12} />
+              )}
             </main>
 
             {/* Call Controls */}
             <footer className="p-4 flex justify-center gap-4">
+              {/* Layout Toggle */}
+              <div className="bg-card/95 backdrop-blur-sm border rounded-full p-2 shadow-lg hidden sm:block">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-10 w-10"
+                  onClick={() => setLayout(layout === 'speaker' ? 'grid' : 'speaker')}
+                  title={layout === 'speaker' ? "Switch to Grid View" : "Switch to Speaker View"}
+                >
+                  <LayoutGrid className={`h-5 w-5 ${layout === 'grid' ? 'text-primary' : ''}`} />
+                </Button>
+              </div>
+
               <div className="bg-card/95 backdrop-blur-sm border rounded-full p-2 shadow-lg">
                 <CallControls onLeave={handleLeaveMeeting} />
               </div>
@@ -667,6 +697,11 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           </div>
         </StreamCall>
       </StreamVideo>
+      <InviteMeetingModal
+        meetingId={meeting?.id || ''}
+        open={isInviteModalOpen}
+        onOpenChange={setIsInviteModalOpen}
+      />
     </BrandingProvider>
   );
 }
