@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate shareable link
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    // Use the request origin to determine the correct base URL (works for localhost and prod)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
     const link = `${appUrl}/meeting/join-code?code=${meeting.meeting_slug}`;
 
     return NextResponse.json({

@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     // Construct invitation link
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
     const invitationLink = `${appUrl}/invite/${token}`;
 
     // Send email via Resend
