@@ -6,7 +6,7 @@ import {
     StreamVideoParticipant
 } from '@stream-io/video-react-sdk';
 
-export const FreeformLayout = () => {
+export const FreeformLayout = ({ branding }: { branding?: any }) => {
     const { useParticipants } = useCallStateHooks();
     const participants = useParticipants();
     const [zIndices, setZIndices] = useState<Record<string, number>>({});
@@ -23,6 +23,10 @@ export const FreeformLayout = () => {
      * 3 columns grid logic
      */
     const getInitialPos = (index: number) => {
+        // Safe default for window size
+        const maxWidth = typeof window !== 'undefined' ? window.innerWidth - 320 : 1000;
+        const maxHeight = typeof window !== 'undefined' ? window.innerHeight - 180 : 800;
+
         const cols = 3;
         const width = 320;
         const height = 180;
@@ -36,16 +40,18 @@ export const FreeformLayout = () => {
         const row = Math.floor(index / cols);
 
         return {
-            x: startX + col * (width + gap),
-            y: startY + row * (height + gap)
+            x: Math.min(startX + col * (width + gap), maxWidth),
+            y: Math.min(startY + row * (height + gap), maxHeight)
         };
     };
 
-    return (
-        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-            {/* pointer-events-none allows clicks to pass through empty areas, 
-          but Rnd components need pointer-events-auto */}
+    // Derived border styles
+    const borderStyle = branding?.meeting_border_style || 'subtle';
+    const borderColor = branding?.secondary_color || 'rgba(255, 255, 255, 0.2)';
+    const borderWidth = borderStyle === 'bold' ? '2px' : borderStyle === 'none' ? '0px' : '1px';
 
+    return (
+        <div className="absolute inset-0 w-full h-full overflow-hidden">
             {participants.map((p, index) => {
                 const initialPos = getInitialPos(index);
 
@@ -60,25 +66,47 @@ export const FreeformLayout = () => {
                         }}
                         minWidth={160}
                         minHeight={90}
-                        bounds="parent"
+                        // Remove bounds="parent" to prevent clipping issues for now
                         style={{
-                            zIndex: zIndices[p.sessionId] || 1,
-                            pointerEvents: 'auto', // Re-enable pointer events for the tile
+                            zIndex: zIndices[p.sessionId] || index + 1,
                         }}
                         onDragStart={() => bringToFront(p.sessionId)}
-                        className="border-2 border-transparent hover:border-primary/50 transition-colors rounded-lg overflow-hidden shadow-lg bg-black/50 backdrop-blur-sm"
+                        className="rounded-lg overflow-hidden shadow-2xl bg-gray-900 transition-colors"
                     >
-                        <div className="relative w-full h-full group">
+                        {/* Wrapper for Border and Content */}
+                        <div
+                            className="relative w-full h-full flex flex-col rounded-lg overflow-hidden"
+                            style={{
+                                border: `${borderWidth} solid ${borderColor}`
+                            }}
+                        >
                             {/* Drag Handle Bar */}
-                            <div className="absolute top-0 left-0 right-0 h-6 z-20 opacity-0 group-hover:opacity-100 bg-black/40 cursor-move flex items-center justify-center transition-opacity">
-                                <div className="w-8 h-1 rounded-full bg-white/20" />
+                            <div className="h-6 bg-black/60 cursor-move flex items-center justify-center shrink-0 z-50 hover:bg-black/80 transition-colors">
+                                <div className="w-8 h-1 rounded-full bg-white/30" />
                             </div>
 
-                            <ParticipantView
-                                participant={p}
-                                trackType="videoParticipant"
-                                className="w-full h-full object-cover"
-                            />
+                            {/* Video Container */}
+                            <div className="flex-1 relative w-full overflow-hidden">
+                                <ParticipantView
+                                    participant={p}
+                                    trackType="videoTrack"
+                                    className="w-full h-full"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+
+                                {/* Explicit Logo Overlay */}
+                                {branding?.show_logo_on_tiles && branding?.logo_url && (
+                                    <div
+                                        className="absolute bottom-2 right-2 w-12 h-12 pointer-events-none z-10 opacity-70"
+                                        style={{
+                                            backgroundImage: `url('${branding.logo_url}')`,
+                                            backgroundSize: 'contain',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'center'
+                                        }}
+                                    />
+                                )}
+                            </div>
 
                             {/* Name Tag Overlay */}
                             <div className="absolute bottom-2 left-2 bg-black/60 px-2 py-1 rounded text-xs text-white pointer-events-none z-10">

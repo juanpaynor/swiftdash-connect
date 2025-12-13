@@ -929,7 +929,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
               {/* Video Grid */}
               <div className="relative h-full w-full p-4 flex items-center justify-center">
                 {isFreeformMode ? (
-                  <FreeformLayout />
+                  <FreeformLayout branding={branding} />
                 ) : (
                   layout === 'speaker' ? (
                     <SpeakerLayout participantsBarPosition="bottom" />
