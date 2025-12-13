@@ -113,6 +113,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
 
   const initializeMeeting = async (isGuestRetry = false) => {
     try {
+      // Always set loading state when starting initialization
+      setIsLoading(true);
+
       const supabase = createClient();
       let currentUser: UserType | { id: string; full_name: string; email?: string; avatar_url?: string } | null = null;
       let isGuest = false;
@@ -305,6 +308,28 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       if (!isGuest && meetingData.host_id === currentUser.id && meetingData.status !== 'live') {
         await supabase.from('meetings').update({ status: 'live' }).eq('id', meetingData.id);
       }
+
+      // Subscribe to meeting status changes (for all participants)
+      supabase
+        .channel(`meeting-status-${meetingData.id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'meetings',
+          filter: `id=eq.${meetingData.id}`
+        }, (payload) => {
+          if (payload.new.status === 'completed' || payload.new.status === 'cancelled') {
+            toast({
+              title: 'Meeting Ended',
+              description: 'The host has ended the meeting',
+            });
+            // Give user a moment to read toast before redirect
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 1500);
+          }
+        })
+        .subscribe();
 
       setIsLoading(false);
 
@@ -674,11 +699,11 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                               <div className="flex items-center gap-3">
                                 {/* Using placeholder avatar if user data missing */}
                                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold">
-                                  {p.users?.full_name?.charAt(0) || '?'}
+                                  {(p.guest_name || p.users?.full_name)?.charAt(0) || '?'}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">{p.users?.full_name || 'Unknown User'}</p>
-                                  <p className="text-xs text-muted-foreground">{p.users?.email}</p>
+                                  <p className="text-sm font-medium">{p.guest_name || p.users?.full_name || 'Unknown User'}</p>
+                                  <p className="text-xs text-muted-foreground">{p.guest_name ? '(Guest)' : p.users?.email}</p>
                                 </div>
                               </div>
                               <div className="flex gap-1">
@@ -714,6 +739,37 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
 
             {/* Video Area */}
             <main className="absolute inset-0 z-0">
+              <style jsx global>{`
+                /* Fix Stream SDK video tile styling */
+                .str-video__participant-view {
+                  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                  border-radius: 8px !important;
+                  overflow: hidden !important;
+                }
+                
+                .str-video__participants-grid,
+                .str-video__paginated-grid-layout {
+                  width: 100% !important;
+                  height: 100% !important;
+                  padding: 1rem !important;
+                  gap: 0.75rem !important;
+                }
+                
+                .str-video__speaker-layout {
+                  width: 100% !important;
+                  height: 100% !important;
+                }
+                
+                .str-video__speaker-layout__wrapper {
+                  width: 100% !important;
+                  height: 100% !important;
+                }
+                
+                .str-video__participants-bar {
+                  padding: 1rem !important;
+                  gap: 0.5rem !important;
+                }
+              `}</style>
               {layout === 'speaker' ? (
                 <SpeakerLayout participantsBarPosition="top" />
               ) : (
