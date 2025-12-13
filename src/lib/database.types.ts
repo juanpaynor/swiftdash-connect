@@ -52,6 +52,12 @@ export interface OrganizationBranding {
   secondary_color: string | null // Hex color, default '#B0E2FF'
   accent_color: string | null // Hex color, default '#E6E6FA'
   logo_url: string | null // URL to logo in Supabase Storage
+  favicon_url: string | null // URL to favicon
+  meeting_background_color: string | null // Meeting room background, default '#000000'
+  meeting_border_style: 'none' | 'subtle' | 'bold' | null // Video tile border style
+  show_logo_on_tiles: boolean | null // Display logo on participant videos
+  button_style: 'rounded' | 'square' | null // Button border radius
+  branding_enabled: boolean | null // Master toggle for branding
   font_family: string | null // Font family, default 'Inter'
   custom_css: string | null // Custom CSS overrides
   created_at: string

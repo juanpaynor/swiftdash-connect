@@ -8,10 +8,10 @@ import {
   Call,
   StreamCall,
   SpeakerLayout,
-  CallControls,
   useCallStateHooks,
   ParticipantView,
   PaginatedGridLayout,
+  useCall,
 } from '@stream-io/video-react-sdk';
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import {
@@ -49,6 +49,91 @@ import { InviteMeetingModal } from '@/components/meeting/invite-meeting-modal';
 import Link from 'next/link';
 
 type MeetingLayout = 'speaker' | 'grid';
+
+// Custom Meeting Controls Component
+function MeetingControls({ onLeave }: { onLeave: () => void }) {
+  const { useCameraState, useMicrophoneState } = useCallStateHooks();
+  const { camera, isMute: isCameraMuted } = useCameraState();
+  const { microphone, isMute: isMicMuted } = useMicrophoneState();
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const call = useCall();
+
+  const toggleCamera = async () => {
+    if (camera) {
+      await camera.toggle();
+    }
+  };
+
+  const toggleMicrophone = async () => {
+    if (microphone) {
+      await microphone.toggle();
+    }
+  };
+
+  const toggleScreenShare = async () => {
+    if (call) {
+      try {
+        if (isScreenSharing) {
+          await call.screenShare.disable();
+          setIsScreenSharing(false);
+        } else {
+          await call.screenShare.enable();
+          setIsScreenSharing(true);
+        }
+      } catch (error) {
+        console.error('Screen share error:', error);
+      }
+    }
+  };
+
+  return (
+    <>
+      {/* Camera */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full h-10 w-10 text-white ${isCameraMuted ? 'bg-red-500 hover:bg-red-600' : 'hover:bg-white/20'}`}
+        onClick={toggleCamera}
+        title={isCameraMuted ? 'Turn Camera On' : 'Turn Camera Off'}
+      >
+        {isCameraMuted ? <VideoOff className="h-5 w-5" /> : <VideoIcon className="h-5 w-5" />}
+      </Button>
+
+      {/* Microphone */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full h-10 w-10 text-white ${isMicMuted ? 'bg-red-500 hover:bg-red-600' : 'hover:bg-white/20'}`}
+        onClick={toggleMicrophone}
+        title={isMicMuted ? 'Unmute' : 'Mute'}
+      >
+        {isMicMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+      </Button>
+
+      {/* Screen Share */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full h-10 w-10 text-white ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-white/20'}`}
+        onClick={toggleScreenShare}
+        title={isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+      >
+        <ScreenShare className="h-5 w-5" />
+      </Button>
+
+      {/* Leave */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="rounded-full h-10 w-10 text-white bg-red-500 hover:bg-red-600"
+        onClick={onLeave}
+        title="Leave Meeting"
+      >
+        <PhoneOff className="h-5 w-5" />
+      </Button>
+    </>
+  );
+}
 
 export default function MeetingPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -103,6 +188,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const [showGuestDialog, setShowGuestDialog] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestId, setGuestId] = useState('');
+  const [branding, setBranding] = useState<any | null>(null);
 
   useEffect(() => {
     // Generate a random guest ID on mount if not present
@@ -165,6 +251,17 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         return;
       }
       setMeeting(meetingData);
+
+      // Fetch organization branding
+      const { data: brandingData } = await supabase
+        .from('organization_branding')
+        .select('*')
+        .eq('organization_id', meetingData.organization_id)
+        .single();
+
+      if (brandingData) {
+        setBranding(brandingData);
+      }
 
       // 3.5 Check if meeting is ended
       if (meetingData.status === 'completed' || meetingData.status === 'cancelled') {
@@ -508,12 +605,25 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       <div className="flex h-screen items-center justify-center p-4 bg-background">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <UserPlus className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-center">Join Meeting</CardTitle>
+            {branding?.logo_url ? (
+              <img
+                src={branding.logo_url}
+                alt="Organization logo"
+                className="mx-auto h-16 object-contain mb-4"
+              />
+            ) : (
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <UserPlus className="h-8 w-8" style={{ color: branding?.primary_color || undefined }} />
+              </div>
+            )}
+            <CardTitle className="text-center" style={{ color: branding?.primary_color || undefined }}>
+              Join {meeting?.title || 'Meeting'}
+            </CardTitle>
             <CardDescription className="text-center">
-              Please enter your name to join as a guest.
+              {meeting?.organization_id && branding ?
+                `Hosted by ${meeting.organization_id}` :
+                'Please enter your name to join as a guest'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -531,6 +641,10 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
               className="w-full"
               onClick={() => initializeMeeting()}
               disabled={!guestName.trim()}
+              style={{
+                backgroundColor: branding?.primary_color || undefined,
+                borderRadius: branding?.button_style === 'square' ? '4px' : undefined,
+              }}
             >
               Continue
             </Button>
@@ -631,7 +745,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       <ThemeInjector />
       <StreamVideo client={client}>
         <StreamCall call={call}>
-          <div className="relative h-dvh w-full bg-black overflow-hidden group">
+          <div className="relative h-dvh w-full overflow-hidden group" style={{ backgroundColor: branding?.meeting_background_color || '#000000' }}>
             {/* Header - Floating Overlay */}
             <header className="absolute top-0 left-0 right-0 z-10 p-3 sm:p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent transition-all duration-300 -translate-y-full group-hover:translate-y-0 hover:translate-y-0">
               <div className="flex items-center gap-2 sm:gap-3 text-white">
@@ -742,10 +856,29 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
               <style jsx global>{`
                 /* Fix Stream SDK video tile styling */
                 .str-video__participant-view {
-                  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                  border: ${branding?.meeting_border_style === 'none' ? '0' : branding?.meeting_border_style === 'bold' ? '2px' : '1px'} solid ${branding?.secondary_color || 'rgba(255, 255, 255, 0.15)'} !important;
                   border-radius: 8px !important;
                   overflow: hidden !important;
+                  position: relative !important;
                 }
+                
+                ${branding?.show_logo_on_tiles && branding?.logo_url ? `
+                .str-video__participant-view::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 8px;
+                  right: 8px;
+                  width: 48px;
+                  height: 48px;
+                  background-image: url('${branding.logo_url}');
+                  background-size: contain;
+                  background-repeat: no-repeat;
+                  background-position: center;
+                  opacity: 0.7;
+                  z-index: 10;
+                  pointer-events: none;
+                }
+                ` : ''}
                 
                 .str-video__participants-grid,
                 .str-video__paginated-grid-layout {
@@ -792,8 +925,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 </Button>
               </div>
 
-              <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl">
-                <CallControls onLeave={handleLeaveMeeting} />
+              {/* Main Controls */}
+              <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl flex gap-2">
+                <MeetingControls onLeave={handleLeaveMeeting} />
               </div>
 
               {/* Chat Button */}

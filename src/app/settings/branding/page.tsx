@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { OrganizationBranding, User } from '@/lib/database.types';
-import { Palette, Upload, Loader2 } from 'lucide-react';
+import { Palette, Upload, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function BrandingSettingsPage() {
   const router = useRouter();
@@ -19,12 +21,19 @@ export default function BrandingSettingsPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     primary_color: '#5BC2E7',
     secondary_color: '#2B4FA6',
     accent_color: '#0066FF',
     logo_url: '',
+    favicon_url: '',
+    meeting_background_color: '#000000',
+    meeting_border_style: 'subtle' as 'none' | 'subtle' | 'bold',
+    show_logo_on_tiles: false,
+    button_style: 'rounded' as 'rounded' | 'square',
     font_heading: 'Inter',
     font_body: 'Inter',
   });
@@ -99,6 +108,11 @@ export default function BrandingSettingsPage() {
         secondary_color: brandingData.secondary_color || '#2B4FA6',
         accent_color: brandingData.accent_color || '#0066FF',
         logo_url: brandingData.logo_url || '',
+        favicon_url: brandingData.favicon_url || '',
+        meeting_background_color: brandingData.meeting_background_color || '#000000',
+        meeting_border_style: (brandingData.meeting_border_style as 'none' | 'subtle' | 'bold') || 'subtle',
+        show_logo_on_tiles: brandingData.show_logo_on_tiles || false,
+        button_style: (brandingData.button_style as 'rounded' | 'square') || 'rounded',
         font_heading: brandingData.font_family || 'Inter',
         font_body: brandingData.font_family || 'Inter',
       });
@@ -177,9 +191,83 @@ export default function BrandingSettingsPage() {
       secondary_color: '#2B4FA6',
       accent_color: '#0066FF',
       logo_url: '',
+      favicon_url: '',
+      meeting_background_color: '#000000',
+      meeting_border_style: 'subtle',
+      show_logo_on_tiles: false,
+      button_style: 'rounded',
       font_heading: 'Inter',
       font_body: 'Inter',
     });
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.default_organization_id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid File',
+        description: 'Please upload an image file (PNG, JPG, or SVG)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'File Too Large',
+        description: 'Logo must be under 2MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const supabase = createClient();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.default_organization_id}/logo-${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('organization-logos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('organization-logos')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, logo_url: urlData.publicUrl });
+      setLogoFile(file);
+
+      toast({
+        title: 'Success',
+        description: 'Logo uploaded successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Upload Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData({ ...formData, logo_url: '' });
+    setLogoFile(null);
   };
 
   if (isLoading) {
@@ -363,38 +451,213 @@ export default function BrandingSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Logo</CardTitle>
-            <CardDescription>Upload your organization logo</CardDescription>
+            <CardDescription>Upload your organization logo (max 2MB)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="logo_url">Logo URL</Label>
-              <Input
-                id="logo_url"
-                type="text"
-                value={formData.logo_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, logo_url: e.target.value })
-                }
-                placeholder="https://example.com/logo.png"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter a URL to your logo image (PNG, JPG, or SVG)
-              </p>
-            </div>
-
-            {formData.logo_url && (
-              <div className="rounded-lg border p-4">
-                <p className="mb-3 text-sm font-medium">Logo Preview</p>
-                <img
-                  src={formData.logo_url}
-                  alt="Logo preview"
-                  className="h-16 object-contain"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
+            {formData.logo_url ? (
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4">
+                  <p className="mb-3 text-sm font-medium">Current Logo</p>
+                  <img
+                    src={formData.logo_url}
+                    alt="Organization logo"
+                    className="h-20 object-contain"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleRemoveLogo}
+                    disabled={isUploading || isSaving}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove Logo
+                  </Button>
+                  <Label htmlFor="logo-upload" className="cursor-pointer">
+                    <Button
+                      variant="outline"
+                      disabled={isUploading || isSaving}
+                      className="gap-2"
+                      asChild
+                    >
+                      <span>
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4" />
+                            Replace Logo
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                  </Label>
+                  <Input
+                    id="logo-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Label htmlFor="logo-upload" className="cursor-pointer">
+                  <div className="rounded-lg border-2 border-dashed p-8 text-center hover:border-primary transition-colors">
+                    <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm font-medium">Click to upload logo</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PNG, JPG, or SVG (max 2MB)
+                    </p>
+                  </div>
+                </Label>
+                <Input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
                 />
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Meeting Room Theme */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Meeting Room Theme</CardTitle>
+            <CardDescription>
+              Customize the appearance of your meeting rooms
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Background Color */}
+            <div className="space-y-2">
+              <Label htmlFor="meeting_bg">Background Color</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="meeting_bg"
+                  type="color"
+                  value={formData.meeting_background_color}
+                  onChange={(e) =>
+                    setFormData({ ...formData, meeting_background_color: e.target.value })
+                  }
+                  className="h-10 w-16 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={formData.meeting_background_color}
+                  onChange={(e) =>
+                    setFormData({ ...formData, meeting_background_color: e.target.value })
+                  }
+                  placeholder="#000000"
+                  className="flex-1"
+                />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, meeting_background_color: '#000000' })}
+                >
+                  Black
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, meeting_background_color: '#FFFFFF' })}
+                >
+                  White
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, meeting_background_color: '#1a1a1a' })}
+                >
+                  Dark Gray
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Main background color for the meeting room
+              </p>
+            </div>
+
+            {/* Border Style */}
+            <div className="space-y-2">
+              <Label>Video Tile Border Style</Label>
+              <RadioGroup
+                value={formData.meeting_border_style}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, meeting_border_style: value as any })
+                }
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="none" id="border-none" />
+                  <Label htmlFor="border-none" className="font-normal cursor-pointer">
+                    None - No borders on video tiles
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="subtle" id="border-subtle" />
+                  <Label htmlFor="border-subtle" className="font-normal cursor-pointer">
+                    Subtle - Thin, semi-transparent borders (recommended)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="bold" id="border-bold" />
+                  <Label htmlFor="border-bold" className="font-normal cursor-pointer">
+                    Bold - Thicker, more prominent borders
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Logo Watermark Toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="show-logo">Logo Watermark on Videos</Label>
+                <p className="text-xs text-muted-foreground">
+                  Display your logo on participant video tiles
+                </p>
+              </div>
+              <Switch
+                id="show-logo"
+                checked={formData.show_logo_on_tiles}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, show_logo_on_tiles: checked })
+                }
+              />
+            </div>
+
+            {/* Button Style */}
+            <div className="space-y-2">
+              <Label>Button Style</Label>
+              <RadioGroup
+                value={formData.button_style}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, button_style: value as any })
+                }
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rounded" id="btn-rounded" />
+                  <Label htmlFor="btn-rounded" className="font-normal cursor-pointer">
+                    Rounded - Pills with full border radius
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="square" id="btn-square" />
+                  <Label htmlFor="btn-square" className="font-normal cursor-pointer">
+                    Square - Minimal border radius
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
           </CardContent>
         </Card>
 
