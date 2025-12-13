@@ -81,13 +81,38 @@ export default function BrandingSettingsPage() {
     setIsOwner(isOrgOwner);
 
     // Get organization branding
-    const { data: brandingData } = await supabase
+    let { data: brandingData, error: brandingError } = await supabase
       .from('organization_branding')
       .select('*')
       .eq('organization_id', userRecord.default_organization_id)
       .single();
 
-    // Check if branding is enabled for this organization
+    // If no branding record exists, create one
+    if (brandingError && brandingError.code === 'PGRST116') {
+      const { data: newBranding, error: createError } = await supabase
+        .from('organization_branding')
+        .insert({
+          organization_id: userRecord.default_organization_id,
+          primary_color: '#5BC2E7',
+          secondary_color: '#2B4FA6',
+          accent_color: '#0066FF',
+          meeting_background_color: '#000000',
+          meeting_border_style: 'subtle',
+          show_logo_on_tiles: false,
+          button_style: 'rounded',
+          branding_enabled: true,
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating branding record:', createError);
+      } else {
+        brandingData = newBranding;
+      }
+    }
+
+    // Enable branding on the organization if not already enabled
     const { data: orgData } = await supabase
       .from('organizations')
       .select('branding_enabled')
@@ -95,9 +120,11 @@ export default function BrandingSettingsPage() {
       .single();
 
     if (!orgData?.branding_enabled) {
-      setBranding(null);
-      setIsLoading(false);
-      return;
+      // Auto-enable branding for this organization
+      await supabase
+        .from('organizations')
+        .update({ branding_enabled: true })
+        .eq('id', userRecord.default_organization_id);
     }
 
     setBranding(brandingData);

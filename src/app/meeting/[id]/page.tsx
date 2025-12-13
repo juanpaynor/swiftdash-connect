@@ -41,6 +41,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/co
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
+import { QualitySelector } from '@/components/meeting/quality-selector';
+import { FreeformLayout } from '@/components/meeting/freeform-layout';
 import { Meeting, User as UserType } from '@/lib/database.types';
 import { BrandingProvider, useBranding } from '@/lib/branding/theme-provider';
 import { ThemeInjector } from '@/components/branding/theme-injector';
@@ -150,6 +152,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const [meetingId, setMeetingId] = useState<string>('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [layout, setLayout] = useState<MeetingLayout>('speaker');
+  const [isFreeformMode, setIsFreeformMode] = useState(false);
 
   // Security State
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -849,6 +852,26 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   </Button>
                 )}
               </div>
+
+              {/* Layout Toggle & Info */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={isFreeformMode ? "bg-primary/20 text-primary" : "text-white"}
+                  onClick={() => setIsFreeformMode(!isFreeformMode)}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  {isFreeformMode ? 'Freeform' : 'Grid'}
+                </Button>
+
+                <div className="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-xs font-medium">
+                    {call?.state.participantCount || 0} online
+                  </span>
+                </div>
+              </div>
             </header>
 
             {/* Video Area */}
@@ -861,7 +884,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   overflow: hidden !important;
                   position: relative !important;
                 }
-                
+
                 ${branding?.show_logo_on_tiles && branding?.logo_url ? `
                 .str-video__participant-view::after {
                   content: '';
@@ -879,7 +902,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   pointer-events: none;
                 }
                 ` : ''}
-                
+
                 .str-video__participants-grid,
                 .str-video__paginated-grid-layout {
                   width: 100% !important;
@@ -887,27 +910,35 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   padding: 1rem !important;
                   gap: 0.75rem !important;
                 }
-                
+
                 .str-video__speaker-layout {
                   width: 100% !important;
                   height: 100% !important;
                 }
-                
+
                 .str-video__speaker-layout__wrapper {
                   width: 100% !important;
                   height: 100% !important;
                 }
-                
+
                 .str-video__participants-bar {
                   padding: 1rem !important;
                   gap: 0.5rem !important;
                 }
               `}</style>
-              {layout === 'speaker' ? (
-                <SpeakerLayout participantsBarPosition="top" />
-              ) : (
-                <PaginatedGridLayout groupSize={12} />
-              )}
+              {/* Video Grid */}
+              <div className="relative h-full w-full p-4 flex items-center justify-center">
+                {isFreeformMode ? (
+                  <FreeformLayout />
+                ) : (
+                  layout === 'speaker' ? (
+                    <SpeakerLayout participantsBarPosition="bottom" />
+                  ) : (
+                    <PaginatedGridLayout />
+                  )
+                )}
+              </div>
+
             </main>
 
             {/* Call Controls - Floating Footer */}

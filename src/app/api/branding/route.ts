@@ -21,11 +21,11 @@ export async function GET(request: NextRequest) {
   // Get user's organization
   const { data: userRecord } = await supabase
     .from('users')
-    .select('organization_id')
+    .select('default_organization_id')
     .eq('id', user.id)
     .single();
 
-  if (!userRecord?.organization_id) {
+  if (!userRecord?.default_organization_id) {
     return NextResponse.json({ error: 'No organization found' }, { status: 404 });
   }
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const { data: branding, error } = await supabase
     .from('organization_branding')
     .select('*')
-    .eq('organization_id', userRecord.organization_id)
+    .eq('organization_id', userRecord.default_organization_id)
     .single();
 
   if (error) {
@@ -64,11 +64,11 @@ export async function PUT(request: NextRequest) {
   // Get user's organization and role
   const { data: userRecord } = await supabase
     .from('users')
-    .select('organization_id')
+    .select('default_organization_id')
     .eq('id', user.id)
     .single();
 
-  if (!userRecord?.organization_id) {
+  if (!userRecord?.default_organization_id) {
     return NextResponse.json({ error: 'No organization found' }, { status: 404 });
   }
 
@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest) {
     .from('organization_members')
     .select('role')
     .eq('user_id', user.id)
-    .eq('organization_id', userRecord.organization_id)
+    .eq('organization_id', userRecord.default_organization_id)
     .single();
 
   if (membership?.role !== 'owner') {
@@ -87,12 +87,28 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  // Check if branding is enabled
-  const { data: branding } = await supabase
+  // Ensure branding record exists (auto-create if missing, similar to page logic)
+  let { data: branding } = await supabase
     .from('organization_branding')
     .select('branding_enabled')
-    .eq('organization_id', userRecord.organization_id)
+    .eq('organization_id', userRecord.default_organization_id)
     .single();
+
+  if (!branding) {
+    // Create if missing
+    const { data: newBranding, error: createError } = await supabase
+      .from('organization_branding')
+      .insert({
+        organization_id: userRecord.default_organization_id,
+        branding_enabled: true
+      })
+      .select('branding_enabled')
+      .single();
+
+    if (!createError) {
+      branding = newBranding;
+    }
+  }
 
   if (!branding?.branding_enabled) {
     return NextResponse.json(
@@ -108,6 +124,11 @@ export async function PUT(request: NextRequest) {
     secondary_color,
     accent_color,
     logo_url,
+    favicon_url,
+    meeting_background_color,
+    meeting_border_style,
+    show_logo_on_tiles,
+    button_style,
     font_heading,
     font_body,
   } = body;
@@ -120,11 +141,16 @@ export async function PUT(request: NextRequest) {
       secondary_color,
       accent_color,
       logo_url,
+      favicon_url,
+      meeting_background_color,
+      meeting_border_style,
+      show_logo_on_tiles,
+      button_style,
       font_heading,
       font_body,
       updated_at: new Date().toISOString(),
     })
-    .eq('organization_id', userRecord.organization_id)
+    .eq('organization_id', userRecord.default_organization_id)
     .select()
     .single();
 
