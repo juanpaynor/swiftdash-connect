@@ -24,30 +24,5 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('organization-logos', 'organization-logos', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies for logo upload
-CREATE POLICY IF NOT EXISTS "Org members can upload logos"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (
-  bucket_id = 'organization-logos' AND
-  auth.uid() IN (
-    SELECT user_id FROM organization_members 
-    WHERE organization_id::text = (storage.foldername(name))[1]
-  )
-);
 
-CREATE POLICY IF NOT EXISTS "Org members can update logos"
-ON storage.objects FOR UPDATE
-TO authenticated
-USING (
- bucket_id = 'organization-logos' AND
-  auth.uid() IN (
-    SELECT user_id FROM organization_members 
-    WHERE organization_id::text = (storage.foldername(name))[1]
-  )
-);
 
-CREATE POLICY IF NOT EXISTS "Public logo access"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'organization-logos');

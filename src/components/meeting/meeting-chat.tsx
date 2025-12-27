@@ -52,9 +52,9 @@ export function MeetingChat({ meetingId, userId, userName, userImage, token, api
       setChatClient(client);
 
       // Create or get channel for this meeting
-      const chatChannel = client.channel('messaging', meetingId, {
+      // Use 'livestream' type to allow open participation without explicit membership checks
+      const chatChannel = client.channel('livestream', meetingId, {
         name: `Meeting Chat`,
-        members: [userId],
       });
 
       await chatChannel.watch();
@@ -68,7 +68,7 @@ export function MeetingChat({ meetingId, userId, userName, userImage, token, api
   useEffect(() => {
     if (branding && chatClient) {
       const root = document.documentElement;
-      
+
       // Apply branding colors to Stream Chat CSS variables
       if (branding.primary_color) {
         root.style.setProperty('--str-chat__primary-color', branding.primary_color);

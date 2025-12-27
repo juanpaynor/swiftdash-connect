@@ -25,13 +25,13 @@ import {
   Users,
   UserPlus,
   ChevronLeft,
-  Loader2,
   Copy,
   Check,
   Shield,
   UserCheck,
   UserX,
   LayoutGrid,
+  PenTool,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,17 +43,19 @@ import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { QualitySelector } from '@/components/meeting/quality-selector';
 import { FreeformLayout } from '@/components/meeting/freeform-layout';
+import { MeetingWhiteboard } from '@/components/meeting/whiteboard/meeting-whiteboard';
 import { Meeting, User as UserType } from '@/lib/database.types';
 import { BrandingProvider, useBranding } from '@/lib/branding/theme-provider';
 import { ThemeInjector } from '@/components/branding/theme-injector';
 import { MeetingChat } from '@/components/meeting/meeting-chat';
 import { InviteMeetingModal } from '@/components/meeting/invite-meeting-modal';
+import { BrandedLoader } from '@/components/ui/branded-loader';
 import Link from 'next/link';
 
 type MeetingLayout = 'speaker' | 'grid';
 
 // Custom Meeting Controls Component
-function MeetingControls({ onLeave }: { onLeave: () => void }) {
+function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () => void; onToggleChat: () => void; isChatOpen: boolean }) {
   const { useCameraState, useMicrophoneState } = useCallStateHooks();
   const { camera, isMute: isCameraMuted } = useCameraState();
   const { microphone, isMute: isMicMuted } = useMicrophoneState();
@@ -112,6 +114,17 @@ function MeetingControls({ onLeave }: { onLeave: () => void }) {
         {isMicMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
       </Button>
 
+      {/* Chat Toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full h-10 w-10 text-white ${isChatOpen ? 'bg-primary hover:bg-primary/90' : 'hover:bg-white/20'}`}
+        onClick={onToggleChat}
+        title="Chat"
+      >
+        <MessageSquare className="h-5 w-5" />
+      </Button>
+
       {/* Screen Share */}
       <Button
         variant="ghost"
@@ -153,6 +166,8 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [layout, setLayout] = useState<MeetingLayout>('speaker');
   const [isFreeformMode, setIsFreeformMode] = useState(false);
+  const [isWhiteboardMode, setIsWhiteboardMode] = useState(false);
+
 
   // Security State
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -199,6 +214,36 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       setGuestId(crypto.randomUUID());
     }
   }, []);
+
+  // Dynamic Metadata (Favicon & Title)
+  useEffect(() => {
+    if (!meeting) return;
+
+    // 1. Update Title
+    const orgName = branding?.organization_id ? ` | ${branding.organization_id}` : ''; // Fallback if org name not avail, checking schema
+    const baseTitle = meeting.title || "Meeting";
+    document.title = `${baseTitle}${orgName}`;
+
+    // 2. Update Favicon
+    if (branding?.favicon_url || branding?.logo_url) {
+      const iconUrl = branding.favicon_url || branding.logo_url;
+
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = iconUrl;
+    }
+
+    // Cleanup
+    return () => {
+      document.title = "SwiftDash Connect"; // Reset to default
+      // Optionally reset favicon, but standard one is hard to restore without knowing path. 
+      // Leaving it is usually fine as it resets on navigation.
+    };
+  }, [meeting, branding]);
 
   const initializeMeeting = async (isGuestRetry = false) => {
     try {
@@ -703,10 +748,12 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
     return (
       <div className="flex h-screen items-center justify-center p-4 bg-background">
         <div className="text-center max-w-md">
-          <Loader2 className="mx-auto h-16 w-16 animate-spin text-primary mb-6" />
+          <BrandedLoader size="xl" className="mx-auto mb-6" />
           <h1 className="text-2xl font-bold mb-2">Waiting Room</h1>
           <p className="text-muted-foreground">
-            Please wait, the meeting host will let you in soon.
+            <span style={{ color: branding?.primary_color }}>
+              {branding?.organization_id || "The host"}
+            </span> has been notified. Please wait to be admitted.
           </p>
         </div>
       </div>
@@ -717,8 +764,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Joining meeting...</p>
+          <BrandedLoader size="lg" className="mx-auto" text="Joining meeting..." />
         </div>
       </div>
     );
@@ -859,10 +905,29 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   variant="ghost"
                   size="sm"
                   className={isFreeformMode ? "bg-primary/20 text-primary" : "text-white"}
-                  onClick={() => setIsFreeformMode(!isFreeformMode)}
+                  onClick={() => {
+                    const newState = !isFreeformMode;
+                    setIsFreeformMode(newState);
+                    if (newState) setIsWhiteboardMode(false);
+                  }}
                 >
                   <LayoutGrid className="h-4 w-4 mr-2" />
                   {isFreeformMode ? 'Freeform' : 'Grid'}
+                </Button>
+
+                {/* Whiteboard Toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={isWhiteboardMode ? "bg-primary/20 text-primary" : "text-white"}
+                  onClick={() => {
+                    const newState = !isWhiteboardMode;
+                    setIsWhiteboardMode(newState);
+                    if (newState) setIsFreeformMode(true); // Enable freeform to show whiteboard tile
+                  }}
+                >
+                  <PenTool className="h-4 w-4 mr-2" />
+                  Whiteboard
                 </Button>
 
                 <div className="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2">
@@ -929,7 +994,11 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
               {/* Video Grid */}
               <div className="relative h-full w-full p-4 flex items-center justify-center">
                 {isFreeformMode ? (
-                  <FreeformLayout branding={branding} />
+                  <FreeformLayout
+                    branding={branding}
+                    meetingId={meetingId || meeting?.id || ''}
+                    isWhiteboardOpen={isWhiteboardMode}
+                  />
                 ) : (
                   layout === 'speaker' ? (
                     <SpeakerLayout participantsBarPosition="bottom" />
@@ -958,22 +1027,13 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
 
               {/* Main Controls */}
               <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl flex gap-2">
-                <MeetingControls onLeave={handleLeaveMeeting} />
-              </div>
+                <MeetingControls
+                  onLeave={handleLeaveMeeting}
+                  onToggleChat={() => setIsChatOpen(true)}
+                  isChatOpen={isChatOpen}
+                /></div>
 
-              {/* Chat Button */}
               <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-                <SheetTrigger asChild>
-                  <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full h-10 w-10 text-white hover:bg-white/20"
-                    >
-                      <MessageSquare className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </SheetTrigger>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col">
                   <SheetHeader className="p-4 border-b">
                     <SheetTitle>Meeting Chat</SheetTitle>

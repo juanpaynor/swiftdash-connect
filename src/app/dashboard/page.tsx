@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PlusCircle, Video as VideoIcon, ArrowRight, Loader2, Calendar, Lock, Users, PhoneOff } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { PlusCircle, Video as VideoIcon, Loader2, Calendar, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +13,8 @@ import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Meeting, User } from '@/lib/database.types';
+import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { MeetingCard } from '@/components/dashboard/meeting-card';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -254,201 +253,154 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <div className="min-h-screen w-full bg-muted/40 pb-20">
       <Header />
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-2">
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Start a New Meeting</CardTitle>
-              <CardDescription>Create and launch a meeting instantly or schedule for later.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow flex items-center justify-center">
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="h-auto p-6">
-                    <PlusCircle className="mr-2 h-6 w-6" />
-                    <span className="text-lg">New Meeting</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Meeting</DialogTitle>
-                    <DialogDescription>
-                      Enter meeting details. You can start it now or schedule for later.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Meeting Title</Label>
-                      <Input
-                        id="title"
-                        placeholder="e.g., Weekly Team Sync"
-                        value={newMeeting.title}
-                        onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="scheduled_time">Schedule Time (Optional)</Label>
-                      <Input
-                        id="scheduled_time"
-                        type="datetime-local"
-                        value={newMeeting.scheduled_time}
-                        onChange={(e) => setNewMeeting({ ...newMeeting, scheduled_time: e.target.value })}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Leave empty to start the meeting immediately
-                      </p>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Result Password (Optional)</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="password"
-                          type="text"
-                          placeholder="Set a meeting password"
-                          className="pl-9"
-                          value={newMeeting.password}
-                          onChange={(e) => setNewMeeting({ ...newMeeting, password: e.target.value })}
-                        />
-                      </div>
-                    </div>
+      <main className="container max-w-5xl mx-auto px-4 py-8 md:py-12">
+        {/* Personalized Header */}
+        <DashboardHeader user={user} />
 
-                    <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <Label className="text-base">Waiting Room</Label>
-                        <div className="text-xs text-muted-foreground">
-                          Participants must be admitted by host
-                        </div>
-                      </div>
-                      <Switch
-                        checked={newMeeting.enable_waiting_room}
-                        onCheckedChange={(checked) => setNewMeeting({ ...newMeeting, enable_waiting_room: checked })}
-                      />
+        {/* Quick Actions Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <button className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all group text-left">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
+                  <PlusCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="font-bold text-lg">New Meeting</div>
+                  <div className="text-blue-100 text-sm opacity-90">Start instantly or schedule</div>
+                </div>
+              </button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Meeting</DialogTitle>
+                <DialogDescription>
+                  Enter meeting details. You can start it now or schedule for later.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Meeting Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Weekly Team Sync"
+                    value={newMeeting.title}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_time">Schedule Time (Optional)</Label>
+                  <Input
+                    id="scheduled_time"
+                    type="datetime-local"
+                    value={newMeeting.scheduled_time}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, scheduled_time: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave empty to start the meeting immediately
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Result Password (Optional)</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="text"
+                      placeholder="Set a meeting password"
+                      className="pl-9"
+                      value={newMeeting.password}
+                      onChange={(e) => setNewMeeting({ ...newMeeting, password: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Waiting Room</Label>
+                    <div className="text-xs text-muted-foreground">
+                      Participants must be admitted by host
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isCreating}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleCreateMeeting} disabled={isCreating}>
-                      {isCreating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        'Create Meeting'
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Join a Meeting</CardTitle>
-              <CardDescription>Enter a meeting code to join an existing meeting.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow flex items-center justify-center">
-              <div className="flex w-full max-w-sm items-center space-x-2">
-                <Input
-                  type="text"
-                  placeholder="Enter meeting code"
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
-                  className="uppercase"
-                />
-                <Button onClick={handleJoinByCode} size="lg">
-                  Join
+                  <Switch
+                    checked={newMeeting.enable_waiting_room}
+                    onCheckedChange={(checked) => setNewMeeting({ ...newMeeting, enable_waiting_room: checked })}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isCreating}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateMeeting} disabled={isCreating}>
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Meeting'
+                  )}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        <Card>
-          <CardHeader className="flex flex-row items-center">
-            <div className="grid gap-2">
-              <CardTitle>Your Meetings</CardTitle>
-              <CardDescription>Recent and upcoming meetings in your organization.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {meetings.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="hidden sm:table-cell">Meeting Code</TableHead>
-                    <TableHead className="hidden sm:table-cell">Date</TableHead>
-                    <TableHead className="hidden sm:table-cell">Time</TableHead>
-                    <TableHead className="hidden md:table-cell">Status</TableHead>
-                    <TableHead>
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {meetings.map((meeting) => (
-                    <TableRow key={meeting.id}>
-                      <TableCell>
-                        <div className="font-medium">{meeting.title}</div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <code className="rounded bg-muted px-2 py-1 text-xs font-mono">
-                          {meeting.meeting_slug}
-                        </code>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        {formatDate(meeting.scheduled_time)}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        {formatTime(meeting.scheduled_time)}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {getStatusBadge(meeting)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {meeting.status === 'live' && meeting.host_id === user?.id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEndMeeting(meeting.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <PhoneOff className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Link href={`/meeting/${meeting.id}`}>
-                            <Button
-                              variant={meeting.status === 'live' ? 'default' : 'outline'}
-                              size="sm"
-                            >
-                              {meeting.status === 'live' ? 'Join Now' : 'View'}
-                            </Button>
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="py-12 text-center">
-                <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 font-semibold">No meetings yet</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Create your first meeting to get started
-                </p>
+            </DialogContent>
+          </Dialog>
+
+          <div className="md:col-span-2 relative">
+            <div className="absolute inset-0 bg-card/50 backdrop-blur-sm rounded-xl border border-border/50  flex items-center p-2 focus-within:ring-2 ring-primary/20 transition-all">
+              <div className="p-3">
+                <VideoIcon className="w-5 h-5 text-muted-foreground" />
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <Input
+                type="text"
+                placeholder="Enter a code to join (e.g. ABC-123)"
+                className="border-0 bg-transparent focus-visible:ring-0 text-base h-full placeholder:text-muted-foreground/50"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
+              />
+              <Button onClick={handleJoinByCode} variant="secondary" className="mr-1">
+                Join
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Meeting List Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xl font-semibold tracking-tight">Recent Sessions</h2>
+            {meetings.length > 0 && <Button variant="link" className="text-muted-foreground">View all</Button>}
+          </div>
+
+          {meetings.length > 0 ? (
+            <div className="space-y-3">
+              {meetings.map(meeting => (
+                <MeetingCard
+                  key={meeting.id}
+                  meeting={meeting}
+                  isHost={meeting.host_id === user?.id}
+                  onEndMeeting={handleEndMeeting}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="py-16 text-center border-2 border-dashed border-border/50 rounded-2xl bg-card/30">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-lg font-medium">No meetings yet</h3>
+              <p className="mt-2 text-muted-foreground max-w-sm mx-auto">
+                Create your first meeting above to get started with your sessions.
+              </p>
+            </div>
+          )}
+        </div>
+
       </main>
     </div>
   );
