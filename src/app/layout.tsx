@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata: Metadata = {
-  title: 'SwiftDash Connect',
-  description: 'Seamless video conferencing with AI-powered features.',
+  title: 'SwiftDash Live - The OS for Real-Time Work',
+  description: 'The first adaptive video platform that morphs to your workflow.',
 };
 
 export default function RootLayout({

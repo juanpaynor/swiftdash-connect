@@ -53,12 +53,17 @@ export function MeetingChat({ meetingId, userId, userName, userImage, token, api
 
       // Create or get channel for this meeting
       // Use 'messaging' type for bidirectional group chat
+      // Don't specify members in creation - let it be dynamic
       const chatChannel = client.channel('messaging', meetingId, {
         name: `Meeting Chat`,
-        members: [userId],
       });
 
+      // Watch the channel (creates it if it doesn't exist)
       await chatChannel.watch();
+
+      // Add current user as a member
+      await chatChannel.addMembers([userId]);
+
       setChannel(chatChannel);
     } catch (error) {
       console.error('Error initializing chat:', error);

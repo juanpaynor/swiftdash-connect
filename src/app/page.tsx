@@ -6,46 +6,49 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Shield, Activity, Gavel, Puzzle, Zap, Users } from 'lucide-react';
 import { Navbar } from '@/components/layout/navbar';
 import { VantaBackground } from '@/components/landing/vanta-background';
-import { DynamicInterfaceDemo } from '@/components/landing/DynamicInterfaceDemo';
 
 export default function LandingPage() {
     return (
-        <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 font-sans">
+        <div className="min-h-screen bg-black text-foreground selection:bg-primary/30 font-sans cursor-default">
             <Navbar />
 
-            {/* Hero Section - The Adaptive Video Experience (Phase 3) */}
-            <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden">
+            {/* Hero Section - The Vanta Experience */}
+            <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden">
                 {/* Background Effects */}
                 <VantaBackground />
 
                 <div className="container relative z-10 px-4 flex flex-col items-center text-center">
+
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.6 }}
-                        className="mb-6 flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md"
+                        className="mb-6 flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 backdrop-blur-md shadow-lg shadow-blue-500/10"
                     >
-                        <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-                        <span className="text-sm font-medium text-blue-200">The first adaptive video platform</span>
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                        </span>
+                        <span className="text-sm font-medium text-blue-200">The OS for Real-Time Work</span>
                     </motion.div>
 
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.1 }}
-                        className="max-w-4xl text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-br from-white via-white to-white/50 bg-clip-text text-transparent"
+                        className="max-w-5xl text-6xl md:text-8xl font-bold tracking-tight mb-8 bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent drop-shadow-2xl"
                     >
-                        Video that adapts <br className="hidden md:block" /> to your work.
+                        Where the world <br /> meets to work.
                     </motion.h1>
 
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="max-w-2xl text-lg text-slate-400 mb-10"
+                        className="max-w-2xl text-xl text-slate-400 mb-12 leading-relaxed"
                     >
-                        Stop forcing your workflow into a generic meeting grid.
-                        SwiftDash Connect morphs its interface to fit your industry—from HIPAA-compliant exams to high-stakes auctions.
+                        Stop forcing your workflow into a grid of faces.
+                        SwiftDash Live morphs its interface to fit your industry—from HIPAA-compliant exams to high-stakes auctions.
                     </motion.p>
 
                     <motion.div
@@ -55,26 +58,16 @@ export default function LandingPage() {
                         className="flex flex-col sm:flex-row gap-4 mb-20"
                     >
                         <Link href="/signup">
-                            <Button size="lg" className="h-12 px-8 text-base bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-all">
+                            <Button size="lg" className="h-14 px-8 text-lg bg-white text-black hover:bg-slate-200 shadow-xl shadow-white/10 transition-all font-semibold rounded-full">
                                 Start Free Trial
-                                <ArrowRight className="ml-2 h-4 w-4" />
+                                <ArrowRight className="ml-2 h-5 w-5" />
                             </Button>
                         </Link>
                         <Link href="/demos">
-                            <Button variant="outline" size="lg" className="h-12 px-8 text-base border-white/10 bg-white/5 hover:bg-white/10">
-                                See Use Cases
+                            <Button variant="outline" size="lg" className="h-14 px-8 text-lg border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-full">
+                                Explore Use Cases
                             </Button>
                         </Link>
-                    </motion.div>
-
-                    {/* The Dynamic Demo */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, rotateX: 20 }}
-                        animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                        transition={{ duration: 1, delay: 0.4, type: "spring" }}
-                        className="w-full max-w-5xl"
-                    >
-                        <DynamicInterfaceDemo />
                     </motion.div>
                 </div>
             </section>
@@ -86,7 +79,7 @@ export default function LandingPage() {
                         <div>
                             <h2 className="text-3xl md:text-4xl font-bold mb-6">Not just a meeting app. <br />An App Platform.</h2>
                             <p className="text-slate-400 text-lg mb-8 leading-relaxed">
-                                Traditional video tools are static. SwiftDash allows you to "dock" specialized applications directly into the call interface.
+                                Traditional video tools are static. SwiftDash Live allows you to "dock" specialized applications directly into the call interface.
                             </p>
 
                             <div className="space-y-6">
@@ -200,7 +193,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-blue-600/5"></div>
                 <div className="container relative z-10 mx-auto max-w-4xl px-4 text-center">
                     <h2 className="mb-6 text-4xl font-bold">Ready to secure your communications?</h2>
-                    <p className="mb-10 text-xl text-slate-400">Join thousands of teams who trust SwiftDash Connect for their critical meetings.</p>
+                    <p className="mb-10 text-xl text-slate-400">Join thousands of teams who trust SwiftDash Live for their critical meetings.</p>
                     <Link href="/signup">
                         <Button size="lg" className="h-14 min-w-[200px] text-lg bg-white text-black hover:bg-slate-200">
                             Get Started Now
@@ -213,7 +206,7 @@ export default function LandingPage() {
             {/* Footer */}
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="container px-4 text-center">
-                    <p className="text-sm text-slate-500">© 2025 SwiftDash Connect. The OS for Real-Time Work.</p>
+                    <p className="text-sm text-slate-500">© 2025 SwiftDash Live. The OS for Real-Time Work.</p>
                 </div>
             </footer>
         </div>

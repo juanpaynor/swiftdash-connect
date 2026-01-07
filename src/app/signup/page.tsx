@@ -128,8 +128,12 @@ export default function SignupPage() {
           >
             <div className="mb-8 text-center">
               <h1 className="flex items-center justify-center gap-2 text-3xl font-bold">
-                <Video className="h-8 w-8 text-primary" />
-                <span>SwiftDash Connect</span>
+                <div className="flex items-center gap-2 font-medium">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                    <img src="/assets/logo.png" alt="SwiftDash" className="h-4 w-4 object-contain brightness-0 invert" />
+                  </div>
+                  SwiftDash Live
+                </div>
               </h1>
               <p className="mt-2 text-slate-400">Create your account</p>
             </div>

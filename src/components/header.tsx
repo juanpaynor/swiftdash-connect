@@ -42,19 +42,19 @@ export function Header() {
   useEffect(() => {
     const fetchUser = async () => {
       const supabase = createClient();
-      
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      
+
       if (authUser) {
         const { data: userData } = await supabase
           .from('users')
           .select('*')
           .eq('id', authUser.id)
           .single();
-        
+
         setUser(userData);
       }
-      
+
       setIsLoading(false);
     };
 
@@ -63,14 +63,14 @@ export function Header() {
 
   const handleLogout = async () => {
     const supabase = createClient();
-    
+
     await supabase.auth.signOut();
-    
+
     toast({
       title: 'Logged out',
       description: 'You have been successfully logged out',
     });
-    
+
     router.push('/');
     router.refresh();
   };
@@ -87,7 +87,7 @@ export function Header() {
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
         <Link href="#" className="flex items-center gap-2 text-lg font-semibold md:text-base">
           <Video className="h-6 w-6 text-primary" />
-          <span className="sr-only">SwiftDash Connect</span>
+          <span className="sr-only">SwiftDash Live</span>
         </Link>
         {navLinks.map((link) => (
           <Link
@@ -110,7 +110,7 @@ export function Header() {
           <nav className="grid gap-6 text-lg font-medium">
             <Link href="#" className="flex items-center gap-2 text-lg font-semibold">
               <Video className="h-6 w-6 text-primary" />
-              <span className="sr-only">SwiftDash Connect</span>
+              <span className="sr-only">SwiftDash Live</span>
             </Link>
             {navLinks.map((link) => (
               <Link
@@ -132,13 +132,13 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">
               {user?.avatar_url ? (
-                 <Image
-                    src={user.avatar_url}
-                    width={36}
-                    height={36}
-                    alt={user.full_name}
-                    className="rounded-full object-cover"
-                  />
+                <Image
+                  src={user.avatar_url}
+                  width={36}
+                  height={36}
+                  alt={user.full_name}
+                  className="rounded-full object-cover"
+                />
               ) : (
                 <CircleUser className="h-5 w-5" />
               )}

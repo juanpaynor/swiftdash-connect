@@ -244,7 +244,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
 
     // Cleanup
     return () => {
-      document.title = "SwiftDash Connect"; // Reset to default
+      document.title = "SwiftDash Live"; // Reset to default
       // Optionally reset favicon, but standard one is hard to restore without knowing path. 
       // Leaving it is usually fine as it resets on navigation.
     };
