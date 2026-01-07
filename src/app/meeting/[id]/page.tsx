@@ -51,6 +51,8 @@ import { MeetingChat } from '@/components/meeting/meeting-chat';
 import { InviteMeetingModal } from '@/components/meeting/invite-meeting-modal';
 import { BrandedLoader } from '@/components/ui/branded-loader';
 import Link from 'next/link';
+import { useMobileInteractions } from '@/hooks/use-mobile-interactions';
+import { cn } from '@/lib/utils';
 
 type MeetingLayout = 'speaker' | 'grid';
 
@@ -96,7 +98,7 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
       <Button
         variant="ghost"
         size="icon"
-        className={`rounded-full h-10 w-10 text-white ${isCameraMuted ? 'bg-red-500 hover:bg-red-600' : 'hover:bg-white/20'}`}
+        className={`rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white ${isCameraMuted ? 'bg-red-500 hover:bg-red-600' : 'hover:bg-white/20'}`}
         onClick={toggleCamera}
         title={isCameraMuted ? 'Turn Camera On' : 'Turn Camera Off'}
       >
@@ -107,7 +109,7 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
       <Button
         variant="ghost"
         size="icon"
-        className={`rounded-full h-10 w-10 text-white ${isMicMuted ? 'bg-red-500 hover:bg-red-600' : 'hover:bg-white/20'}`}
+        className={`rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white ${isMicMuted ? 'bg-red-500 hover:bg-red-600' : 'hover:bg-white/20'}`}
         onClick={toggleMicrophone}
         title={isMicMuted ? 'Unmute' : 'Mute'}
       >
@@ -118,7 +120,7 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
       <Button
         variant="ghost"
         size="icon"
-        className={`rounded-full h-10 w-10 text-white ${isChatOpen ? 'bg-primary hover:bg-primary/90' : 'hover:bg-white/20'}`}
+        className={`rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white ${isChatOpen ? 'bg-primary hover:bg-primary/90' : 'hover:bg-white/20'}`}
         onClick={onToggleChat}
         title="Chat"
       >
@@ -129,7 +131,7 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
       <Button
         variant="ghost"
         size="icon"
-        className={`rounded-full h-10 w-10 text-white ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-white/20'}`}
+        className={`rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600' : 'hover:bg-white/20'}`}
         onClick={toggleScreenShare}
         title={isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
       >
@@ -140,7 +142,7 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
       <Button
         variant="ghost"
         size="icon"
-        className="rounded-full h-10 w-10 text-white bg-red-500 hover:bg-red-600"
+        className="rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white bg-red-500 hover:bg-red-600"
         onClick={onLeave}
         title="Leave Meeting"
       >
@@ -177,6 +179,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const [isInWaitingRoom, setIsInWaitingRoom] = useState(false);
   const [waitingParticipants, setWaitingParticipants] = useState<any[]>([]);
   const [isWaitingRoomOpen, setIsWaitingRoomOpen] = useState(false);
+
+  // Mobile Interactions
+  const { isMobile, showControls, toggleControls, handleInteraction } = useMobileInteractions();
 
   useEffect(() => {
     const loadParams = async () => {
@@ -448,6 +453,17 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       const streamCall = streamClient.call('default', meetingData.id);
       await streamCall.join({ create: true });
       setCall(streamCall);
+
+      // Enforce 720p (HD) limit to prevent 4K usage and save costs
+      try {
+        // @ts-ignore - SDK types might not reflect that enable accepts constraints
+        await streamCall.camera.enable({
+          video: { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: 30 }
+        });
+        await streamCall.microphone.enable();
+      } catch (e) {
+        console.error('Error enabling devices:', e);
+      }
 
       // Set Live Status if Host
       if (!isGuest && meetingData.host_id === currentUser.id && meetingData.status !== 'live') {
@@ -794,13 +810,25 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       <ThemeInjector />
       <StreamVideo client={client}>
         <StreamCall call={call}>
-          <div className="relative h-dvh w-full overflow-hidden group" style={{ backgroundColor: branding?.meeting_background_color || '#000000' }}>
+          <div
+            className="relative h-dvh w-full overflow-hidden group"
+            style={{ backgroundColor: branding?.meeting_background_color || '#000000' }}
+            onClick={toggleControls}
+          >
             {/* Header - Floating Overlay */}
-            <header className="absolute top-0 left-0 right-0 z-10 p-3 sm:p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent transition-all duration-300 -translate-y-full group-hover:translate-y-0 hover:translate-y-0">
+            <header
+              className={cn(
+                "absolute top-0 left-0 right-0 z-10 p-3 sm:p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent transition-all duration-300",
+                isMobile
+                  ? (showControls ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0")
+                  : "-translate-y-full group-hover:translate-y-0"
+              )}
+              onClick={(e) => { e.stopPropagation(); handleInteraction(); }}
+            >
               <div className="flex items-center gap-2 sm:gap-3 text-white">
                 <Link href="/dashboard">
-                  <Button variant="ghost" size="icon" onClick={handleLeaveMeeting} className="h-8 w-8 sm:h-10 sm:w-10 text-white hover:bg-white/20">
-                    <ChevronLeft className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" onClick={handleLeaveMeeting} className="h-10 w-10 text-white hover:bg-white/20">
+                    <ChevronLeft className="h-5 w-5" />
                   </Button>
                 </Link>
                 <div>
@@ -1011,9 +1039,17 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
             </main>
 
             {/* Call Controls - Floating Footer */}
-            <footer className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex justify-center gap-4 transition-all duration-300 translate-y-full group-hover:translate-y-0 hover:translate-y-0">
+            <footer
+              className={cn(
+                "absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex justify-center gap-4 transition-all duration-300 pb-safe",
+                isMobile
+                  ? (showControls ? "translate-y-0 opacity-100" : "translate-y-[150%] opacity-0")
+                  : "translate-y-full group-hover:translate-y-0"
+              )}
+              onClick={(e) => { e.stopPropagation(); handleInteraction(); }}
+            >
               {/* Layout Toggle */}
-              <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl hidden sm:block">
+              <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-full p-2 shadow-2xl">
                 <Button
                   variant="ghost"
                   size="icon"

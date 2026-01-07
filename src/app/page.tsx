@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Shield, Activity, Gavel, Puzzle } from 'lucide-react';
+import { ArrowRight, Shield, Activity, Gavel, Puzzle, Zap, Users } from 'lucide-react';
 import { Navbar } from '@/components/layout/navbar';
+import { VantaBackground } from '@/components/landing/vanta-background';
 import { DynamicInterfaceDemo } from '@/components/landing/DynamicInterfaceDemo';
 
 export default function LandingPage() {
@@ -12,11 +13,10 @@ export default function LandingPage() {
         <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 font-sans">
             <Navbar />
 
-            {/* Hero Section - The Adaptive Video Experience */}
+            {/* Hero Section - The Adaptive Video Experience (Phase 3) */}
             <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden">
                 {/* Background Effects */}
-                <div className="absolute top-0 left-0 w-full h-[800px] bg-gradient-to-b from-indigo-900/20 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute -top-[200px] left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-blue-600/10 blur-[100px] pointer-events-none" />
+                <VantaBackground />
 
                 <div className="container relative z-10 px-4 flex flex-col items-center text-center">
                     <motion.div
@@ -79,7 +79,7 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* "Not Just a Meeting App" Section */}
+            {/* "Not Just a Meeting App" Section (Phase 3) */}
             <section className="py-32 bg-slate-950 relative border-t border-white/5">
                 <div className="container px-4">
                     <div className="grid md:grid-cols-2 gap-16 items-center">
@@ -139,6 +139,77 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* Features Grid (Restored from Previous Design) */}
+            <section className="relative z-10 bg-black/50 py-24 border-t border-white/5">
+                <div className="container mx-auto px-4">
+                    <div className="mb-16 text-center">
+                        <h2 className="mb-4 text-3xl font-bold">Why Industry Leaders Choose Us</h2>
+                        <p className="text-slate-400">Built for speed, security, and scale.</p>
+                    </div>
+
+                    <div className="grid gap-8 md:grid-cols-3">
+                        <FeatureCard
+                            icon={<Shield className="h-8 w-8 text-blue-400" />}
+                            title="Military-Grade Security"
+                            description="End-to-end encryption ensures your conversations stay private. Always."
+                        />
+                        <FeatureCard
+                            icon={<Zap className="h-8 w-8 text-yellow-400" />}
+                            title="99.99% Reliability"
+                            description="Redundant global infrastructure guarantees uptime when it matters most."
+                        />
+                        <FeatureCard
+                            icon={<Users className="h-8 w-8 text-purple-400" />}
+                            title="Team-Centric"
+                            description="Seamlessly integrated workspaces, channels, and instant huddles."
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* How It Works Section (Restored from Previous Design) */}
+            <section className="relative py-24 border-t border-white/5 bg-slate-950">
+                <div className="container mx-auto px-4">
+                    <div className="mb-16 text-center">
+                        <h2 className="mb-4 text-3xl font-bold">Seamless Integration</h2>
+                        <p className="text-slate-400">Get started in minutes, not days.</p>
+                    </div>
+
+                    <div className="grid gap-12 md:grid-cols-3">
+                        <StepCard
+                            number="01"
+                            title="Create Organization"
+                            description="Sign up and create your secure workspace in less than 30 seconds."
+                        />
+                        <StepCard
+                            number="02"
+                            title="Invite Team"
+                            description="Send secure invite links to your team members and set permissions."
+                        />
+                        <StepCard
+                            number="03"
+                            title="Start Collaborating"
+                            description="Launch HD video meetings and encrypted chats instantly."
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* FAQ & CTA (Restored from Previous Design) */}
+            <section className="relative overflow-hidden py-24 border-t border-white/5">
+                <div className="absolute inset-0 bg-blue-600/5"></div>
+                <div className="container relative z-10 mx-auto max-w-4xl px-4 text-center">
+                    <h2 className="mb-6 text-4xl font-bold">Ready to secure your communications?</h2>
+                    <p className="mb-10 text-xl text-slate-400">Join thousands of teams who trust SwiftDash Connect for their critical meetings.</p>
+                    <Link href="/signup">
+                        <Button size="lg" className="h-14 min-w-[200px] text-lg bg-white text-black hover:bg-slate-200">
+                            Get Started Now
+                            <ArrowRight className="ml-2 h-5 w-5" />
+                        </Button>
+                    </Link>
+                </div>
+            </section>
+
             {/* Footer */}
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="container px-4 text-center">
@@ -161,4 +232,28 @@ function FeatureRow({ icon, title, desc }: { icon: React.ReactNode, title: strin
             </div>
         </div>
     )
+}
+
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+    return (
+        <div
+            className="group rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors hover:border-blue-500/50 hover:bg-white/10"
+        >
+            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 shadow-lg ring-1 ring-white/10 transition-transform group-hover:scale-110">
+                {icon}
+            </div>
+            <h3 className="mb-3 text-xl font-semibold">{title}</h3>
+            <p className="leading-relaxed text-slate-400">{description}</p>
+        </div>
+    );
+}
+
+function StepCard({ number, title, description }: { number: string; title: string; description: string }) {
+    return (
+        <div className="relative p-6">
+            <div className="mb-4 text-6xl font-bold text-white/5">{number}</div>
+            <h3 className="mb-2 text-xl font-bold">{title}</h3>
+            <p className="text-slate-400">{description}</p>
+        </div>
+    );
 }

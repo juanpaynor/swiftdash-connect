@@ -52,9 +52,10 @@ export function MeetingChat({ meetingId, userId, userName, userImage, token, api
       setChatClient(client);
 
       // Create or get channel for this meeting
-      // Use 'livestream' type to allow open participation without explicit membership checks
-      const chatChannel = client.channel('livestream', meetingId, {
+      // Use 'messaging' type for bidirectional group chat
+      const chatChannel = client.channel('messaging', meetingId, {
         name: `Meeting Chat`,
+        members: [userId],
       });
 
       await chatChannel.watch();

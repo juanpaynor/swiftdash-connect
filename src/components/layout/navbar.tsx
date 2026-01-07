@@ -14,7 +14,7 @@ export function Navbar() {
                     <span>SwiftDash Connect</span>
                 </Link>
                 <div className="flex items-center gap-4">
-                    <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block">
+                    <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
                         Login
                     </Link>
                     <Link href="/signup">

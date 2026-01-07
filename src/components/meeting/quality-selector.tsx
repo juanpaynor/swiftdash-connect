@@ -36,9 +36,11 @@ export const QualitySelector = () => {
         }
 
         // Apply constraints to camera
-        // Note: Stream SDK specific quality setting implementation requires different handling
         await call.camera.disable();
-        await call.camera.enable();
+        // @ts-ignore - SDK types might not reflect that enable accepts constraints
+        await call.camera.enable({
+            video: { width, height, frameRate }
+        });
         console.log(`Switched to ${quality} settings`);
     };
 
