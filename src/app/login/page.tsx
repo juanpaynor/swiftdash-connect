@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,7 +88,7 @@ export default function LoginPage() {
               <h1 className="flex items-center justify-center gap-2 text-3xl font-bold">
                 <div className="flex items-center gap-2 font-medium">
                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                    <img src="/assets/logo.png" alt="SwiftDash" className="h-4 w-4 object-contain brightness-0 invert" />
+                    <Image src="/assets/logo.png" alt="SwiftDash" width={16} height={16} className="h-4 w-4 object-contain brightness-0 invert" />
                   </div>
                   SwiftDash Live
                 </div>

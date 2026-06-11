@@ -10,6 +10,10 @@
 
 @layer base {
   :root {
+    /* Force black background at the root level before JS loads */
+    --background: 0 0% 0%;
+    background-color: #000;
+
     /* Premium SwiftDash Theme */
     --background: 210 40% 98%;
     /* Soft cool white */
@@ -91,8 +95,10 @@
     @apply border-border;
   }
 
+  html,
   body {
     @apply bg-background text-foreground;
+    background-color: #000 !important;
   }
 }
 

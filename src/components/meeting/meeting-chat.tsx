@@ -61,8 +61,8 @@ export function MeetingChat({ meetingId, userId, userName, userImage, token, api
       // Watch the channel (creates it if it doesn't exist)
       await chatChannel.watch();
 
-      // Add current user as a member
-      await chatChannel.addMembers([userId]);
+      // Add current user as a member - MOVED TO SERVER SIDE (api/stream/token)
+      // await chatChannel.addMembers([userId]);
 
       setChannel(chatChannel);
     } catch (error) {

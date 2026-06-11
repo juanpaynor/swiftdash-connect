@@ -9,7 +9,8 @@ import { createClient } from '@/lib/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { is_guest, user_id: guestId, name: guestName } = body;
+    // Extract meeting_id from body if available
+    const { is_guest, user_id: guestId, name: guestName, meeting_id } = body;
 
     const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
     const apiSecret = process.env.STREAM_API_SECRET;
@@ -24,8 +25,32 @@ export async function POST(request: NextRequest) {
 
     const serverClient = StreamChat.getInstance(apiKey, apiSecret);
 
+    // Helper to add user to channel if meeting_id is present
+    const ensureChannelMember = async (userId: string) => {
+      if (meeting_id) {
+        try {
+          const channel = serverClient.channel('messaging', meeting_id, {
+            created_by_id: userId // Ensure the channel exists or is created
+          });
+          await channel.create();
+          await channel.addMembers([userId]);
+        } catch (e) {
+          console.error('Error adding member to channel:', e);
+        }
+      }
+    };
+
     // GUEST FLOW
     if (is_guest && guestId && guestName) {
+      await ensureChannelMember(guestId);
+
+      // Explicitly upsert the user with 'user' role to ensure publishing permissions
+      await serverClient.upsertUser({
+        id: guestId,
+        name: guestName,
+        role: 'user',
+      });
+
       const token = serverClient.createToken(guestId);
       return NextResponse.json({
         token,
@@ -58,6 +83,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token for user
+    // Generate token for user
+    await ensureChannelMember(userRecord.id);
     const token = serverClient.createToken(userRecord.id);
 
     return NextResponse.json({

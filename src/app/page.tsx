@@ -1,252 +1,683 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import { useRef, useEffect, useState } from 'react';
+import { motion, useScroll, useMotionValueEvent, useInView } from 'framer-motion';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { ArrowRight, Shield, Activity, Gavel, Puzzle, Zap, Users } from 'lucide-react';
-import { Navbar } from '@/components/layout/navbar';
-import { VantaBackground } from '@/components/landing/vanta-background';
+import { ArrowDown, Mail } from 'lucide-react';
+import { PortfolioNavbar } from '@/components/layout/portfolio-navbar';
+import { NeonCursor } from '@/components/landing/neon-cursor';
+import { ScrollProgressBar } from '@/components/landing/scroll-progress-bar';
 
-export default function LandingPage() {
-    return (
-        <div className="min-h-screen bg-black text-foreground selection:bg-primary/30 font-sans cursor-default">
-            <Navbar />
+const SphereScene = dynamic(() => import('@/components/landing/sphere-scene'), { ssr: false });
 
-            {/* Hero Section - The Vanta Experience */}
-            <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden">
-                {/* Background Effects */}
-                <VantaBackground />
+const SECTION_IDS = ['hero', 'about', 'projects', 'stack', 'contact'];
 
-                <div className="container relative z-10 px-4 flex flex-col items-center text-center">
+const PROJECTS = [
+  {
+    title: 'Deya PH',
+    subtitle: 'HRIS Mobile App — Philippines',
+    description:
+      'Human Resource Information System mobile app for Philippine companies. Built the full mobile client — employee management, payroll, attendance, and leave tracking — shipped to the App Store.',
+    tech: ['React Native', 'Expo', 'REST API', 'Firebase'],
+    platform: 'Mobile',
+    live: 'https://apps.apple.com/us/app/deya-ph/id6756650859',
+    liveLabel: 'App Store ↗',
+    color: '#00d4ff',
+    icon: '💼',
+  },
+  {
+    title: 'SwiftDash DMS',
+    subtitle: 'Transportation Management System',
+    description:
+      'Full-stack TMS — think Fareye & Shipday. Custom domain support, live driver tracking, advanced dispatching engine, tracking links, and a dedicated driver app. My flagship product.',
+    tech: ['Next.js', 'React Native', 'Expo', 'Node.js', 'PostgreSQL', 'Supabase'],
+    platform: 'Web + Mobile',
+    live: 'https://swiftdashdms.com',
+    liveLabel: 'swiftdashdms.com ↗',
+    color: '#8855ff',
+    icon: '🚚',
+  },
+  {
+    title: 'Hanghut',
+    subtitle: 'Ticketing & Subscription for Social Media',
+    description:
+      'The most complex system I’ve built. Ticketing and subscription platform for social content creators. Designed and shipped 100% of the product with a team of 3 from zero to production.',
+    tech: ['Next.js', 'React Native', 'Expo', 'TypeScript', 'Supabase', 'Stripe'],
+    platform: 'Web + Mobile',
+    live: 'https://hanghut.com',
+    liveLabel: 'hanghut.com ↗',
+    color: '#ff44aa',
+    icon: '🎫',
+  },
+];
 
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.6 }}
-                        className="mb-6 flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 backdrop-blur-md shadow-lg shadow-blue-500/10"
-                    >
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                        </span>
-                        <span className="text-sm font-medium text-blue-200">The OS for Real-Time Work</span>
-                    </motion.div>
+const TECH_STACK = [
+  'Next.js', 'React', 'React Native', 'Expo', 'Flutter', 'Dart',
+  'TypeScript', 'Node.js', 'Tauri', 'Electron', 'PostgreSQL',
+  'Supabase', 'TailwindCSS', 'Three.js', 'Framer Motion',
+  'Docker', 'Vercel', 'GraphQL', 'Firebase', 'WebRTC',
+];
 
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                        className="max-w-5xl text-6xl md:text-8xl font-bold tracking-tight mb-8 bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent drop-shadow-2xl"
-                    >
-                        Where the world <br /> meets to work.
-                    </motion.h1>
+// ── Hooks ─────────────────────────────────────────────────────────────────
 
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                        className="max-w-2xl text-xl text-slate-400 mb-12 leading-relaxed"
-                    >
-                        Stop forcing your workflow into a grid of faces.
-                        SwiftDash Live morphs its interface to fit your industry—from HIPAA-compliant exams to high-stakes auctions.
-                    </motion.p>
+function useTypewriter(texts: string[], speed = 110, pause = 2400) {
+  const [displayed, setDisplayed] = useState('');
+  const state = useRef({ index: 0, charIndex: 0, deleting: false });
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
-                        className="flex flex-col sm:flex-row gap-4 mb-20"
-                    >
-                        <Link href="/signup">
-                            <Button size="lg" className="h-14 px-8 text-lg bg-white text-black hover:bg-slate-200 shadow-xl shadow-white/10 transition-all font-semibold rounded-full">
-                                Start Free Trial
-                                <ArrowRight className="ml-2 h-5 w-5" />
-                            </Button>
-                        </Link>
-                        <Link href="/demos">
-                            <Button variant="outline" size="lg" className="h-14 px-8 text-lg border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-full">
-                                Explore Use Cases
-                            </Button>
-                        </Link>
-                    </motion.div>
-                </div>
-            </section>
+  useEffect(() => {
+    const { index, charIndex, deleting } = state.current;
+    const current = texts[index % texts.length];
+    let timeout: ReturnType<typeof setTimeout>;
 
-            {/* "Not Just a Meeting App" Section (Phase 3) */}
-            <section className="py-32 bg-slate-950 relative border-t border-white/5">
-                <div className="container px-4">
-                    <div className="grid md:grid-cols-2 gap-16 items-center">
-                        <div>
-                            <h2 className="text-3xl md:text-4xl font-bold mb-6">Not just a meeting app. <br />An App Platform.</h2>
-                            <p className="text-slate-400 text-lg mb-8 leading-relaxed">
-                                Traditional video tools are static. SwiftDash Live allows you to "dock" specialized applications directly into the call interface.
-                            </p>
+    if (!deleting && charIndex < current.length) {
+      timeout = setTimeout(() => {
+        setDisplayed(current.slice(0, charIndex + 1));
+        state.current.charIndex++;
+      }, speed);
+    } else if (!deleting && charIndex === current.length) {
+      timeout = setTimeout(() => { state.current.deleting = true; }, pause);
+    } else if (deleting && charIndex > 0) {
+      timeout = setTimeout(() => {
+        setDisplayed(current.slice(0, charIndex - 1));
+        state.current.charIndex--;
+      }, speed / 2);
+    } else {
+      state.current.deleting = false;
+      state.current.index++;
+    }
+    return () => clearTimeout(timeout);
+  });
 
-                            <div className="space-y-6">
-                                <FeatureRow
-                                    icon={<Activity className="text-red-400" />}
-                                    title="Telehealth Module"
-                                    desc="Embed EMR records and live vitals directly alongside patient video."
-                                />
-                                <FeatureRow
-                                    icon={<Gavel className="text-amber-400" />}
-                                    title="Live Bidding Engine"
-                                    desc="Sub-second latency video with synchronized auction timer and bid ledger."
-                                />
-                                <FeatureRow
-                                    icon={<Puzzle className="text-purple-400" />}
-                                    title="Classroom Kit"
-                                    desc="Shared whiteboards, pop quizzes, and breakout timer controls."
-                                />
-                            </div>
-                        </div>
-                        <div className="relative">
-                            {/* Visual representation of "Docking" - Abstract for now */}
-                            <div className="aspect-square rounded-3xl bg-gradient-to-br from-indigo-500/10 to-blue-500/5 border border-white/10 relative overflow-hidden flex items-center justify-center p-8">
-                                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-                                <div className="grid grid-cols-2 gap-4 w-full h-full p-4">
-                                    <div className="bg-slate-900/80 rounded-2xl border border-white/10 p-4 flex flex-col gap-2 animate-pulse">
-                                        <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center"><Activity className="w-4 h-4 text-red-500" /></div>
-                                        <div className="h-2 w-20 bg-white/10 rounded" />
-                                        <div className="h-2 w-12 bg-white/10 rounded" />
-                                    </div>
-                                    <div className="bg-slate-900/80 rounded-2xl border border-white/10 p-4 flex flex-col gap-2 translate-y-8">
-                                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center"><Gavel className="w-4 h-4 text-amber-500" /></div>
-                                        <div className="h-2 w-20 bg-white/10 rounded" />
-                                        <div className="h-2 w-12 bg-white/10 rounded" />
-                                    </div>
-                                    <div className="bg-slate-900/80 rounded-2xl border border-white/10 p-4 flex flex-col gap-2 -translate-y-4">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center"><Shield className="w-4 h-4 text-blue-500" /></div>
-                                        <div className="h-2 w-20 bg-white/10 rounded" />
-                                        <div className="h-2 w-12 bg-white/10 rounded" />
-                                    </div>
-                                    <div className="bg-slate-900/80 rounded-2xl border border-white/10 p-4 flex flex-col gap-2 translate-y-4">
-                                        <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center"><Puzzle className="w-4 h-4 text-purple-500" /></div>
-                                        <div className="h-2 w-20 bg-white/10 rounded" />
-                                        <div className="h-2 w-12 bg-white/10 rounded" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Features Grid (Restored from Previous Design) */}
-            <section className="relative z-10 bg-black/50 py-24 border-t border-white/5">
-                <div className="container mx-auto px-4">
-                    <div className="mb-16 text-center">
-                        <h2 className="mb-4 text-3xl font-bold">Why Industry Leaders Choose Us</h2>
-                        <p className="text-slate-400">Built for speed, security, and scale.</p>
-                    </div>
-
-                    <div className="grid gap-8 md:grid-cols-3">
-                        <FeatureCard
-                            icon={<Shield className="h-8 w-8 text-blue-400" />}
-                            title="Military-Grade Security"
-                            description="End-to-end encryption ensures your conversations stay private. Always."
-                        />
-                        <FeatureCard
-                            icon={<Zap className="h-8 w-8 text-yellow-400" />}
-                            title="99.99% Reliability"
-                            description="Redundant global infrastructure guarantees uptime when it matters most."
-                        />
-                        <FeatureCard
-                            icon={<Users className="h-8 w-8 text-purple-400" />}
-                            title="Team-Centric"
-                            description="Seamlessly integrated workspaces, channels, and instant huddles."
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* How It Works Section (Restored from Previous Design) */}
-            <section className="relative py-24 border-t border-white/5 bg-slate-950">
-                <div className="container mx-auto px-4">
-                    <div className="mb-16 text-center">
-                        <h2 className="mb-4 text-3xl font-bold">Seamless Integration</h2>
-                        <p className="text-slate-400">Get started in minutes, not days.</p>
-                    </div>
-
-                    <div className="grid gap-12 md:grid-cols-3">
-                        <StepCard
-                            number="01"
-                            title="Create Organization"
-                            description="Sign up and create your secure workspace in less than 30 seconds."
-                        />
-                        <StepCard
-                            number="02"
-                            title="Invite Team"
-                            description="Send secure invite links to your team members and set permissions."
-                        />
-                        <StepCard
-                            number="03"
-                            title="Start Collaborating"
-                            description="Launch HD video meetings and encrypted chats instantly."
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* FAQ & CTA (Restored from Previous Design) */}
-            <section className="relative overflow-hidden py-24 border-t border-white/5">
-                <div className="absolute inset-0 bg-blue-600/5"></div>
-                <div className="container relative z-10 mx-auto max-w-4xl px-4 text-center">
-                    <h2 className="mb-6 text-4xl font-bold">Ready to secure your communications?</h2>
-                    <p className="mb-10 text-xl text-slate-400">Join thousands of teams who trust SwiftDash Live for their critical meetings.</p>
-                    <Link href="/signup">
-                        <Button size="lg" className="h-14 min-w-[200px] text-lg bg-white text-black hover:bg-slate-200">
-                            Get Started Now
-                            <ArrowRight className="ml-2 h-5 w-5" />
-                        </Button>
-                    </Link>
-                </div>
-            </section>
-
-            {/* Footer */}
-            <footer className="border-t border-white/10 py-12 bg-black">
-                <div className="container px-4 text-center">
-                    <p className="text-sm text-slate-500">© 2025 SwiftDash Live. The OS for Real-Time Work.</p>
-                </div>
-            </footer>
-        </div>
-    );
+  return displayed;
 }
 
-function FeatureRow({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-    return (
-        <div className="flex gap-4">
-            <div className="mt-1 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                {icon}
-            </div>
-            <div>
-                <h3 className="font-semibold text-white mb-1">{title}</h3>
-                <p className="text-sm text-slate-400">{desc}</p>
-            </div>
-        </div>
-    )
+function useScrambleText(finalText: string, duration = 1500) {
+  const [displayed, setDisplayed] = useState(finalText);
+
+  useEffect(() => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%';
+    let startTime: number | null = null;
+    let rafId: number;
+
+    const tick = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const elapsed = ts - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const result = finalText.split('').map((char, i) => {
+        if (char === ' ') return ' ';
+        const revealAt = (i / finalText.length) * 0.9;
+        if (progress > revealAt) return char;
+        return chars[Math.floor(Math.random() * chars.length)];
+      }).join('');
+      setDisplayed(result);
+      if (progress < 1) rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [finalText, duration]);
+
+  return displayed;
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
-    return (
-        <div
-            className="group rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors hover:border-blue-500/50 hover:bg-white/10"
+function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const [displayed, setDisplayed] = useState(0);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!isInView || started.current) return;
+    started.current = true;
+    let startTime: number | null = null;
+    const dur = 2000;
+    const frame = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const p = Math.min((ts - startTime) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplayed(Math.round(eased * value));
+      if (p < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }, [isInView, value]);
+
+  return <span ref={ref}>{displayed}{suffix}</span>;
+}
+
+// ── Components ────────────────────────────────────────────────────────────
+
+function ProjectCard({ project, index }: { project: typeof PROJECTS[number]; index: number }) {
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  return (
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      initial={{ opacity: 0, y: 60 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.6, delay: index * 0.12, ease: 'easeOut' }}
+      whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+      className="relative rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-7 overflow-hidden group"
+      style={{
+        boxShadow: hovered ? `0 0 35px ${project.color}18` : '0 0 0 transparent',
+        transition: 'box-shadow 0.3s ease',
+      }}
+    >
+      <div
+        className="absolute inset-0 rounded-2xl pointer-events-none transition-opacity duration-300"
+        style={{
+          opacity: hovered ? 1 : 0,
+          background: `radial-gradient(320px circle at ${mouse.x}px ${mouse.y}px, ${project.color}10, transparent)`,
+        }}
+      />
+      <div
+        className="absolute inset-0 rounded-2xl pointer-events-none transition-opacity duration-300"
+        style={{ opacity: hovered ? 1 : 0, boxShadow: `inset 0 0 0 1px ${project.color}22` }}
+      />
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{project.icon}</span>
+            <span
+              className="text-[10px] px-2.5 py-1 rounded-full border"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                borderColor: `${project.color}30`,
+                color: `${project.color}aa`,
+                backgroundColor: `${project.color}08`,
+              }}
+            >
+              {project.platform}
+            </span>
+          </div>
+          <Link
+            href={project.live}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white/30 hover:text-white text-xs flex items-center gap-1"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {project.liveLabel}
+          </Link>
+        </div>
+        <p
+          className="text-[11px] mb-1 uppercase tracking-widest"
+          style={{ fontFamily: "'JetBrains Mono', monospace", color: `${project.color}66` }}
         >
-            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 shadow-lg ring-1 ring-white/10 transition-transform group-hover:scale-110">
-                {icon}
-            </div>
-            <h3 className="mb-3 text-xl font-semibold">{title}</h3>
-            <p className="leading-relaxed text-slate-400">{description}</p>
+          {project.subtitle}
+        </p>
+        <h3 className="text-lg font-bold mb-2 text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          {project.title}
+        </h3>
+        <p className="text-white/40 text-sm leading-relaxed mb-6">{project.description}</p>
+        <div className="flex flex-wrap gap-2">
+          {project.tech.map((t) => (
+            <span key={t} className="px-2.5 py-1 rounded-full text-xs border"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                borderColor: `${project.color}28`,
+                color: `${project.color}cc`,
+                backgroundColor: `${project.color}08`,
+              }}>
+              {t}
+            </span>
+          ))}
         </div>
-    );
+      </div>
+    </motion.div>
+  );
 }
 
-function StepCard({ number, title, description }: { number: string; title: string; description: string }) {
-    return (
-        <div className="relative p-6">
-            <div className="mb-4 text-6xl font-bold text-white/5">{number}</div>
-            <h3 className="mb-2 text-xl font-bold">{title}</h3>
-            <p className="text-slate-400">{description}</p>
+function TechMarquee({ reverse = false }: { reverse?: boolean }) {
+  const items = reverse ? [...TECH_STACK.slice(7), ...TECH_STACK.slice(0, 7)] : TECH_STACK;
+  return (
+    <div className="relative overflow-hidden py-3">
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black to-transparent z-10" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black to-transparent z-10" />
+      <motion.div
+        className="flex gap-4 w-max"
+        animate={{ x: reverse ? ['-50%', '0%'] : ['0%', '-50%'] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
+      >
+        {[...items, ...items].map((tech, i) => (
+          <div key={i}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.07] bg-white/[0.03] text-white/40 text-sm whitespace-nowrap hover:border-[#00d4ff]/30 hover:text-[#00d4ff]/80 transition-colors cursor-default"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            <span className="w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: reverse ? 'rgba(255,255,255,0.2)' : '#00d4ff' }} />
+            {tech}
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Sections ──────────────────────────────────────────────────────────────
+
+function HeroSection() {
+  const name = useScrambleText('JOHN PATIÑO', 1500);
+  const role = useTypewriter(
+    ['Software Engineer', 'Web Developer', 'Mobile Developer', 'Desktop Developer', 'React & Flutter Dev'],
+    115, 2400
+  );
+
+  return (
+    <section id="hero" className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 pt-20">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[#00d4ff]/[0.04] blur-[100px]" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="mb-8 flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm"
+      >
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+        </span>
+        <span className="text-sm text-white/50" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Available for opportunities — Web · Mobile · Desktop
+        </span>
+      </motion.div>
+
+      <motion.h1
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="text-6xl sm:text-8xl md:text-9xl font-black tracking-tight mb-4 text-white"
+        style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}
+      >
+        {name}
+      </motion.h1>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.5 }}
+        className="text-xl md:text-2xl font-light text-[#00d4ff] mb-6 h-9 flex items-center gap-0.5"
+      >
+        <span>{role}</span>
+        <span className="animate-[pulse_0.8s_ease-in-out_infinite] text-[#00d4ff]">▍</span>
+      </motion.div>
+
+      <motion.p
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.7 }}
+        className="max-w-lg text-white/35 text-base leading-relaxed mb-10"
+      >
+        I build for web, mobile, and desktop — React, Expo, Flutter, Next.js.
+        From idea to shipped product, across every platform.
+      </motion.p>
+
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.9 }}
+        className="flex flex-col sm:flex-row gap-4"
+      >
+        <Link href="#projects">
+          <button
+            className="h-12 px-8 rounded-full text-black font-semibold text-sm transition-all"
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              background: '#00d4ff',
+              boxShadow: '0 0 20px rgba(0,212,255,0.35), 0 0 40px rgba(0,212,255,0.15)',
+            }}
+          >
+            View Projects
+          </button>
+        </Link>
+        <Link href="#contact">
+          <button
+            className="h-12 px-8 rounded-full text-white/70 text-sm border border-white/[0.12] hover:border-[#00d4ff]/40 hover:text-[#00d4ff] transition-all bg-transparent"
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            Contact Me
+          </button>
+        </Link>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.8, duration: 1 }}
+        className="absolute bottom-10 flex flex-col items-center gap-1.5 text-white/20"
+      >
+        <motion.span
+          className="text-[10px] tracking-[0.3em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+          animate={{ y: [0, 4, 0] }}
+          transition={{ duration: 1.8, repeat: Infinity }}
+        >
+          scroll
+        </motion.span>
+        <ArrowDown size={14} />
+      </motion.div>
+    </section>
+  );
+}
+
+function AboutSection() {
+  const stats = [
+    { value: 8,   suffix: '+',  label: 'Years Experience' },
+    { value: 3,   suffix: '',   label: 'Platforms (Web · Mobile · Desktop)' },
+    { value: 300, suffix: '+',  label: 'Projects Shipped' },
+    { value: 100, suffix: '%',  label: 'Passion for Code' },
+  ];
+
+  return (
+    <section id="about" className="relative py-32 px-4">
+      <div className="md:max-w-[56vw] md:ml-10">
+        <motion.p
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-5 text-[#00d4ff]/70 text-xs tracking-[0.3em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          01 — About
+        </motion.p>
+
+        <div className="space-y-10">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              I build for{' '}
+              <span className="text-[#00d4ff]" style={{ textShadow: '0 0 20px rgba(0,212,255,0.4)' }}>
+                every platform
+              </span>.
+            </h2>
+            <p className="text-white/40 text-base leading-relaxed mb-4">
+              I&apos;m a Software Engineer who builds across the full spectrum — web apps with Next.js, cross-platform
+              mobile apps with React Native + Expo and Flutter, and native desktop software too. One codebase
+              or three, I make it feel native.
+            </p>
+            <p className="text-white/40 text-base leading-relaxed">
+              I care about clean architecture, real performance, and experiences that feel right on
+              every screen — from a 6&quot; phone to a 4K monitor.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
+            className="grid grid-cols-2 gap-4"
+          >
+            {stats.map((s) => (
+              <motion.div
+                key={s.label}
+                variants={{ hidden: { opacity: 0, scale: 0.88 }, visible: { opacity: 1, scale: 1 } }}
+                className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 hover:border-[#00d4ff]/20 transition-colors"
+              >
+                <div className="text-4xl font-black text-[#00d4ff] mb-1"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif", textShadow: '0 0 15px rgba(0,212,255,0.3)' }}>
+                  <AnimatedCounter value={s.value} suffix={s.suffix} />
+                </div>
+                <div className="text-white/35 text-sm">{s.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function ProjectsSection() {
+  return (
+    <section id="projects" className="relative py-32 px-4">
+      <div className="md:max-w-[58vw] md:ml-10">
+        <motion.p
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-5 text-[#00d4ff]/70 text-xs tracking-[0.3em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          02 — Projects
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="text-4xl md:text-5xl font-bold mb-4"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          Hundreds built.
+          <br />
+          <span className="text-[#00d4ff]" style={{ textShadow: '0 0 20px rgba(0,212,255,0.3)' }}>3 I&apos;m proud of.</span>
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-white/35 text-sm mb-14 max-w-md"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Full-stack systems. Real users. Real scale.
+        </motion.p>
+        <div className="grid sm:grid-cols-2 gap-5">
+          {PROJECTS.map((project, i) => (
+            <ProjectCard key={project.title} project={project} index={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StackSection() {
+  return (
+    <section id="stack" className="relative py-32 overflow-hidden">
+      <div className="md:max-w-[56vw] md:ml-10 px-4 mb-12">
+        <motion.p
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-5 text-[#00d4ff]/70 text-xs tracking-[0.3em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          03 — Stack
+        </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="text-4xl md:text-5xl font-bold"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          Technologies I work with
+        </motion.h2>
+      </div>
+      <div className="space-y-3">
+        <TechMarquee />
+        <TechMarquee reverse />
+      </div>
+    </section>
+  );
+}
+
+function ContactSection() {
+  const socials = [
+    { icon: <Mail size={19} />, label: 'Email', href: 'mailto:johnpatino@swiftdash.ph', handle: 'johnpatino@swiftdash.ph' },
+  ];
+
+  return (
+    <section id="contact" className="relative py-32 px-4">
+      <div className="md:max-w-[50vw] md:ml-10">
+        <div className="absolute left-0 w-[400px] h-[350px] rounded-full bg-[#00d4ff]/[0.04] blur-[90px] pointer-events-none" />
+
+        <motion.p
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-6 text-[#00d4ff]/70 text-xs tracking-[0.3em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          04 — Contact
+        </motion.p>
+
+        <motion.h2
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+          className="text-4xl md:text-6xl font-black mb-5 relative leading-tight"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          Let&apos;s build something{' '}
+          <span className="text-[#00d4ff]" style={{ textShadow: '0 0 30px rgba(0,212,255,0.5)' }}>
+            together
+          </span>
+        </motion.h2>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="text-white/35 text-base mb-12 leading-relaxed"
+        >
+          Whether you have a project in mind, a question, or just want to connect —
+          my inbox is always open.
+        </motion.p>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+          className="flex flex-col sm:flex-row gap-4"
+        >
+          {socials.map((s) => (
+            <motion.div
+              key={s.label}
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+            >
+              <Link
+                href={s.href}
+                target={s.href.startsWith('http') ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 px-7 py-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] text-white/50 hover:border-[#00d4ff]/35 hover:text-[#00d4ff] hover:bg-[#00d4ff]/[0.04] transition-all group"
+              >
+                <span className="text-white/30 group-hover:text-[#00d4ff] transition-colors">{s.icon}</span>
+                <div className="text-left">
+                  <div className="text-[10px] text-white/25 tracking-widest uppercase mb-0.5"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {s.label}
+                  </div>
+                  <div className="text-sm font-medium">{s.handle}</div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="max-w-5xl mx-auto px-4">
+      <div className="h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
+    </div>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────
+
+export default function PortfolioPage() {
+  const scrollRef   = useRef(0);
+  const sectionRef  = useRef(0);
+  const { scrollYProgress } = useScroll();
+
+  useMotionValueEvent(scrollYProgress, 'change', (latest) => {
+    scrollRef.current = latest;
+  });
+
+  // Track which section is active (drives shape morph + colour)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = SECTION_IDS.indexOf(entry.target.id);
+            if (idx !== -1) sectionRef.current = idx;
+          }
+        });
+      },
+      { threshold: 0.3 }
     );
+    SECTION_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      className="min-h-screen bg-black text-white cursor-none selection:bg-[#00d4ff]/25"
+      style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+    >
+      <NeonCursor />
+      <ScrollProgressBar />
+      <SphereScene scrollRef={scrollRef} sectionRef={sectionRef} />
+      <PortfolioNavbar />
+
+      <main className="relative" style={{ zIndex: 10 }}>
+        <HeroSection />
+        <Divider />
+        <AboutSection />
+        <Divider />
+        <ProjectsSection />
+        <Divider />
+        <StackSection />
+        <Divider />
+        <ContactSection />
+      </main>
+
+      <footer className="relative border-t border-white/[0.05] py-8 px-4" style={{ zIndex: 10 }}>
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="text-white/20 text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            © 2026 John Patiño
+          </span>
+          <span className="text-white/15 text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            built with Next.js + Three.js + framer-motion
+          </span>
+        </div>
+      </footer>
+    </div>
+  );
 }

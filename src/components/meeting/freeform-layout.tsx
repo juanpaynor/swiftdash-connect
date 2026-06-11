@@ -7,7 +7,7 @@ import {
 } from '@stream-io/video-react-sdk';
 import { MeetingWhiteboard } from '@/components/meeting/whiteboard/meeting-whiteboard';
 
-export const FreeformLayout = ({ branding, meetingId, isWhiteboardOpen }: { branding?: any, meetingId: string, isWhiteboardOpen: boolean }) => {
+export const FreeformLayout = ({ branding, meetingId, isWhiteboardOpen, raisedHands = new Set() }: { branding?: any, meetingId: string, isWhiteboardOpen: boolean, raisedHands?: Set<string> }) => {
     const { useParticipants } = useCallStateHooks();
     const participants = useParticipants();
     const [zIndices, setZIndices] = useState<Record<string, number>>({});
@@ -143,8 +143,11 @@ export const FreeformLayout = ({ branding, meetingId, isWhiteboardOpen }: { bran
                             </div>
 
                             {/* Name Tag Overlay */}
-                            <div className="absolute bottom-2 left-2 bg-black/60 px-2 py-1 rounded text-xs text-white pointer-events-none z-10">
+                            <div className="absolute bottom-2 left-2 bg-black/60 px-2 py-1 rounded text-xs text-white pointer-events-none z-10 flex items-center gap-1">
                                 {tile.label} {tile.participant.isLocalParticipant && !tile.isScreenShare ? '(You)' : ''}
+                                {!tile.isScreenShare && raisedHands.has(tile.participant.userId) && (
+                                    <span className="text-base ml-1">✋</span>
+                                )}
                             </div>
                         </div>
                     </Rnd>

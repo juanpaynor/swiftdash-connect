@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { v4 as uuidv4 } from 'uuid';
 import {
   StreamVideo,
   StreamVideoClient,
@@ -32,6 +33,7 @@ import {
   UserX,
   LayoutGrid,
   PenTool,
+  PictureInPicture,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,15 +55,37 @@ import { BrandedLoader } from '@/components/ui/branded-loader';
 import Link from 'next/link';
 import { useMobileInteractions } from '@/hooks/use-mobile-interactions';
 import { cn } from '@/lib/utils';
+import { usePictureInPicture } from '@/hooks/use-picture-in-picture';
+import { AICompanionButton } from '@/components/meeting/ai-companion/AICompanionButton';
+import { SummaryModal } from '@/components/meeting/ai-companion/SummaryModal';
+import { useSummarization } from '@/components/meeting/ai-companion/hooks/useSummarization';
+import { useMeetingRecorder } from '@/components/meeting/ai-companion/hooks/useMeetingRecorder';
 
 type MeetingLayout = 'speaker' | 'grid';
 
 // Custom Meeting Controls Component
-function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () => void; onToggleChat: () => void; isChatOpen: boolean }) {
+function MeetingControls({
+  onLeave,
+  onToggleChat,
+  isChatOpen,
+  onToggleHand,
+  isHandRaised,
+  onToggleAI,
+  isAIActive,
+}: {
+  onLeave: () => void;
+  onToggleChat: () => void;
+  isChatOpen: boolean;
+  onToggleHand: () => void;
+  isHandRaised: boolean;
+  onToggleAI: () => void;
+  isAIActive: boolean;
+}) {
   const { useCameraState, useMicrophoneState } = useCallStateHooks();
   const { camera, isMute: isCameraMuted } = useCameraState();
   const { microphone, isMute: isMicMuted } = useMicrophoneState();
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isNoiseCancellationEnabled, setIsNoiseCancellationEnabled] = useState(false);
   const call = useCall();
 
   const toggleCamera = async () => {
@@ -88,6 +112,22 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
         }
       } catch (error) {
         console.error('Screen share error:', error);
+      }
+    }
+  };
+
+  const toggleNoiseCancellation = async () => {
+    if (microphone) {
+      try {
+        if (isNoiseCancellationEnabled) {
+          await microphone.disableNoiseCancellation?.();
+          setIsNoiseCancellationEnabled(false);
+        } else {
+          await microphone.enableNoiseCancellation?.();
+          setIsNoiseCancellationEnabled(true);
+        }
+      } catch (error) {
+        console.error('Noise cancellation error:', error);
       }
     }
   };
@@ -138,6 +178,35 @@ function MeetingControls({ onLeave, onToggleChat, isChatOpen }: { onLeave: () =>
         <ScreenShare className="h-5 w-5" />
       </Button>
 
+      {/* Raise Hand */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white ${isHandRaised ? 'bg-yellow-500 hover:bg-yellow-600' : 'hover:bg-white/20'}`}
+        onClick={onToggleHand}
+        title={isHandRaised ? 'Lower Hand' : 'Raise Hand'}
+      >
+        <span className="text-xl">{isHandRaised ? '✋' : '🖐️'}</span>
+      </Button>
+
+      {/* Noise Cancellation */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full h-11 w-11 sm:h-10 sm:w-10 text-white ${isNoiseCancellationEnabled ? 'bg-green-500 hover:bg-green-600' : 'hover:bg-white/20'}`}
+        onClick={toggleNoiseCancellation}
+        title={isNoiseCancellationEnabled ? 'Disable Noise Cancellation' : 'Enable Noise Cancellation'}
+      >
+        <span className="text-sm font-bold">NC</span>
+      </Button>
+
+      {/* AI Companion */}
+      <AICompanionButton
+        onClick={onToggleAI}
+        isActive={isAIActive}
+        isProcessing={false}
+      />
+
       {/* Leave */}
       <Button
         variant="ghost"
@@ -183,6 +252,91 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   // Mobile Interactions
   const { isMobile, showControls, toggleControls, handleInteraction } = useMobileInteractions();
 
+  // Picture in Picture
+  const { togglePiP, isActive: isPiPActive, isSupported: isPiPSupported } = usePictureInPicture();
+
+  // Hand Raising State
+  const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
+  const [isHandRaised, setIsHandRaised] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // AI Companion State
+  const [isAIActive, setIsAIActive] = useState(false);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [isProcessingSummary, setIsProcessingSummary] = useState(false);
+  const { summary, isGenerating, generateSummary } = useSummarization();
+  const { isRecording, startRecording, stopRecording, audioBlob } = useMeetingRecorder();
+
+  // Handle processing when audio blob is available
+  useEffect(() => {
+    const processAudio = async () => {
+      if (audioBlob && isProcessingSummary && meeting) {
+        try {
+          toast({
+            title: 'Processing Meeting Audio',
+            description: 'Uploading and transcribing... please wait.',
+          });
+
+          // 1. Upload and Start Transcription
+          const formData = new FormData();
+          formData.append('audio', audioBlob);
+
+          const startRes = await fetch('/api/ai/start-processing', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!startRes.ok) throw new Error('Failed to start processing');
+          const { transcript_id } = await startRes.json();
+
+          // 2. Poll for Completion
+          let transcriptText = '';
+          let attempts = 0;
+          const maxAttempts = 60; // 2 minutes (assuming 2s interval)
+
+          while (attempts < maxAttempts) {
+            await new Promise(r => setTimeout(r, 2000)); // Poll every 2s
+
+            const statusRes = await fetch(`/api/ai/poll-status?id=${transcript_id}`);
+            if (!statusRes.ok) continue;
+
+            const statusData = await statusRes.json();
+
+            if (statusData.status === 'completed') {
+              transcriptText = statusData.text;
+              break;
+            } else if (statusData.status === 'error') {
+              throw new Error(statusData.error || 'Transcription failed');
+            }
+            attempts++;
+          }
+
+          if (!transcriptText) throw new Error('Transcription timed out');
+
+          // 3. Generate Summary
+          await generateSummary(transcriptText, meeting.id);
+          setIsProcessingSummary(false);
+          setIsSummaryModalOpen(true);
+
+        } catch (error) {
+          console.error('Processing failed:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Processing Failed',
+            description: 'Could not generate meeting summary.',
+          });
+          setIsProcessingSummary(false);
+          // Allow leaving if failed
+          if (meeting) {
+            router.push('/dashboard');
+          }
+        }
+      }
+    };
+
+    processAudio();
+  }, [audioBlob, isProcessingSummary, meeting, generateSummary, toast, router]);
+
   useEffect(() => {
     const loadParams = async () => {
       const resolvedParams = await params;
@@ -216,7 +370,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   useEffect(() => {
     // Generate a random guest ID on mount if not present
     if (!guestId) {
-      setGuestId(crypto.randomUUID());
+      setGuestId(uuidv4());
     }
   }, []);
 
@@ -421,8 +575,8 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       // 6. Get Stream Token
       // Use Guest payload if needed
       const tokenPayload = isGuest
-        ? { is_guest: true, user_id: currentUser.id, name: currentUser.full_name }
-        : {};
+        ? { is_guest: true, user_id: currentUser.id, name: currentUser.full_name, meeting_id: meetingData.id }
+        : { meeting_id: meetingData.id };
 
       const tokenResponse = await fetch('/api/stream/token', {
         method: 'POST',
@@ -444,7 +598,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           id: currentUser.id,
           name: currentUser.full_name,
           image: currentUser.avatar_url,
-          type: isGuest ? 'guest' : 'regular',
+          type: 'user', // Always use 'user' type to ensure full capabilities (publishing, etc.)
         } as any, // Cast to any to avoid strict type mismatch on 'type' property
         token,
       });
@@ -492,6 +646,23 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         })
         .subscribe();
 
+      // Listen for hand raising custom events
+      streamCall.on('custom', (event: any) => {
+        const customData = event.custom;
+        if (customData?.type === 'hand_raised' && customData?.user_id) {
+          setRaisedHands(prev => new Set(prev).add(customData.user_id));
+        } else if (customData?.type === 'hand_lowered' && customData?.user_id) {
+          setRaisedHands(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(customData.user_id);
+            return newSet;
+          });
+        }
+      });
+
+      // Store current user ID for hand raising
+      setCurrentUserId(currentUser.id);
+
       setIsLoading(false);
 
     } catch (error: any) {
@@ -506,6 +677,14 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   };
 
   const handleLeaveMeeting = async () => {
+    // 1. AI Check: If AI is recording, stop and process first
+    if (isAIActive && isRecording) {
+      setIsProcessingSummary(true);
+      stopRecording(); // This will trigger the effect when blob is ready
+      return;
+    }
+
+    // 2. Logging & Leaving Logic
     try {
       const supabase = createClient();
 
@@ -516,13 +695,12 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         // Log usage to database
         if (meeting && user) {
           await supabase.from('stream_usage_logs').insert({
-            organization_id: user.default_organization_id!, // Fixed: changed from organization_id
+            organization_id: user.default_organization_id!,
             meeting_id: meeting.id,
-            participant_minutes: 0, // Placeholder
+            participant_minutes: 0,
             peak_concurrent_participants: participants,
             recorded_at: new Date().toISOString(),
           });
-
         }
 
         await call.leave();
@@ -637,6 +815,55 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       setTimeout(() => setIsCopied(false), 2000);
     }
   };
+
+  const toggleHand = async () => {
+    if (!call || !currentUserId) return;
+
+    try {
+      const newHandState = !isHandRaised;
+      setIsHandRaised(newHandState);
+
+      // Send custom event to all participants
+      await call.sendCustomEvent({
+        type: newHandState ? 'hand_raised' : 'hand_lowered',
+        user_id: currentUserId,
+      });
+
+      // Update local state
+      setRaisedHands(prev => {
+        const newSet = new Set(prev);
+        if (newHandState) {
+          newSet.add(currentUserId);
+        } else {
+          newSet.delete(currentUserId);
+        }
+        return newSet;
+      });
+    } catch (error) {
+      console.error('Error toggling hand:', error);
+    }
+  };
+
+  const toggleAI = () => {
+    const newState = !isAIActive;
+    setIsAIActive(newState);
+
+    if (newState) {
+      startRecording();
+      toast({
+        title: 'AI Companion Activated',
+        description: 'Recording meeting for summary generation...',
+      });
+    } else {
+      stopRecording();
+      toast({
+        title: 'AI Companion Deactivated',
+        description: 'Recording stopped',
+      });
+    }
+  };
+
+
 
   if (meeting?.status === 'completed' || meeting?.status === 'cancelled') {
     return (
@@ -1020,12 +1247,17 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 }
               `}</style>
               {/* Video Grid */}
-              <div className="relative h-full w-full p-4 flex items-center justify-center">
+              <div
+                id="pip-container"
+                className="relative h-full w-full p-4 flex items-center justify-center transition-all"
+                style={{ backgroundColor: isPiPActive ? (branding?.meeting_background_color || '#000000') : 'transparent' }}
+              >
                 {isFreeformMode ? (
                   <FreeformLayout
                     branding={branding}
                     meetingId={meetingId || meeting?.id || ''}
                     isWhiteboardOpen={isWhiteboardMode}
+                    raisedHands={raisedHands}
                   />
                 ) : (
                   layout === 'speaker' ? (
@@ -1035,6 +1267,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   )
                 )}
               </div>
+
+              {/* Mount point for fallback restoration if needed */}
+              <div id="pip-container-mount" className="hidden" />
 
             </main>
 
@@ -1059,6 +1294,19 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 >
                   <LayoutGrid className={`h-5 w-5 ${layout === 'grid' ? 'text-blue-400' : ''}`} />
                 </Button>
+
+                {/* PiP Toggle */}
+                {isPiPSupported && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full h-10 w-10 text-white hover:bg-white/20"
+                    onClick={() => togglePiP('pip-container')}
+                    title={isPiPActive ? "Exit Floating Window" : "Float Window"}
+                  >
+                    <PictureInPicture className={`h-5 w-5 ${isPiPActive ? 'text-blue-400' : ''}`} />
+                  </Button>
+                )}
               </div>
 
               {/* Main Controls */}
@@ -1067,6 +1315,10 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                   onLeave={handleLeaveMeeting}
                   onToggleChat={() => setIsChatOpen(true)}
                   isChatOpen={isChatOpen}
+                  onToggleHand={toggleHand}
+                  isHandRaised={isHandRaised}
+                  onToggleAI={toggleAI}
+                  isAIActive={isAIActive}
                 /></div>
 
               <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
@@ -1097,6 +1349,28 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         open={isInviteModalOpen}
         onOpenChange={setIsInviteModalOpen}
       />
+      <SummaryModal
+        isOpen={isSummaryModalOpen}
+        onClose={() => {
+          setIsSummaryModalOpen(false);
+          router.push('/dashboard'); // Go to dashboard after closing summary
+        }}
+        summary={summary}
+        meetingTitle={meeting?.title || 'Meeting'}
+        duration={0}
+        participantCount={0}
+      />
+
+      {/* Processing Overlay */}
+      {isProcessingSummary && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center space-y-4 text-white">
+            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-lg font-medium">Generating Meeting Summary...</p>
+            <p className="text-sm text-gray-400">This may take a minute</p>
+          </div>
+        </div>
+      )}
     </BrandingProvider>
   );
 }
